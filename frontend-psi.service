@@ -1,0 +1,27 @@
+[Unit]
+Description=Psi Fernanda Costa - Frontend Next.js
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/www/wwwroot/app.psifernandacosta.com/front-end
+Environment="NODE_ENV=production"
+Environment="PORT=3000"
+Environment="HOSTNAME=0.0.0.0"
+Environment="PATH=/usr/local/bin:/usr/bin:/bin:/usr/local/node/bin"
+ExecStart=/usr/bin/node .next/standalone/server.js
+Restart=always
+RestartSec=10
+StandardOutput=append:/www/wwwroot/app.psifernandacosta.com/logs/frontend.log
+StandardError=append:/www/wwwroot/app.psifernandacosta.com/logs/frontend.error.log
+
+# Limites de recursos
+LimitNOFILE=65536
+MemoryMax=1G
+
+[Install]
+WantedBy=multi-user.target
+
