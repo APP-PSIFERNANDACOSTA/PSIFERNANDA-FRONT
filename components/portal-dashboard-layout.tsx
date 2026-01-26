@@ -55,7 +55,7 @@ export function PortalDashboardLayout({ children }: { children: React.ReactNode 
                 />
                 <div className={`flex flex-1 flex-col transition-all duration-300 ${sidebarCollapsed ? "lg:pl-20" : "lg:pl-64"}`}>
                     <PatientHeader onMenuClick={toggleSidebar} />
-                    <main className="flex-1 overflow-y-auto bg-background p-4 sm:p-6 pb-24 lg:pb-6" style={{ paddingBottom: 'calc(4rem + env(safe-area-inset-bottom, 0px))' }}>
+                    <main className="flex-1 overflow-y-auto bg-background px-5 py-6 sm:p-6 lg:pb-6" style={{ paddingBottom: 'calc(92px + 24px + env(safe-area-inset-bottom, 0px))' }}>
                         <div className="flex min-h-full flex-col">
                             <div className="flex-1">{children}</div>
                             <footer className="mt-8 border-t pt-4 text-center sm:text-right text-xs text-muted-foreground lg:block hidden">

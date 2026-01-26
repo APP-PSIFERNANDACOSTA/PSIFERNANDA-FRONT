@@ -132,14 +132,14 @@ export default function FinanceiroPage() {
   )
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 sm:space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-foreground">Financeiro</h1>
         <p className="mt-2 text-muted-foreground">Acompanhe seus pagamentos e recibos</p>
       </div>
 
       {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-5 sm:gap-4 md:grid-cols-2">
         <Card>
           <CardContent className="flex items-center gap-3 p-4">
             <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
@@ -169,7 +169,7 @@ export default function FinanceiroPage() {
       </div>
 
       {/* Payment History */}
-      <div className="space-y-4">
+      <div className="space-y-5 sm:space-y-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="text-xl font-semibold text-foreground">Histórico de Pagamentos</h2>
           <div className="flex items-center gap-2">
@@ -204,7 +204,7 @@ export default function FinanceiroPage() {
             </CardContent>
           </Card>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-4 sm:space-y-3">
             {sortedPayments.map((payment) => (
               <Card key={payment.id}>
                 <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between p-4">
@@ -285,8 +285,8 @@ export default function FinanceiroPage() {
           <div className="flex-1 text-sm">
             <p className="font-medium text-foreground">Formas de Pagamento</p>
             <p className="mt-1 text-muted-foreground">
-              Aceitamos PIX, cartão de crédito e débito. O pagamento pode ser realizado antes ou após a sessão. Em caso
-              de dúvidas, entre em contato.
+              O pagamento semanal deve ser realizado em até 30 minutos antes da sessão e pagamentos mensais, no dia
+              acordado. Pode ser feito via PIX ou transferência bancária.
             </p>
           </div>
         </CardContent>

@@ -2,7 +2,6 @@
 
 import { CheckCircle, Mail, MessageCircle, Clock, Heart } from 'lucide-react'
 import { Card } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
 import { useColors } from '@/hooks/use-colors'
 
 export default function ContractSuccessPage() {
@@ -17,10 +16,10 @@ export default function ContractSuccessPage() {
             <CheckCircle className="w-10 h-10 text-green-600" />
           </div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Contrato Assinado com Sucesso! 🎉
+            Seu contrato foi assinado com sucesso! ✨
           </h1>
           <p className="text-lg text-gray-600">
-            Bem-vindo(a) ao processo terapêutico!
+            A partir de agora, você está oficialmente cadastrado(a) como meu/minha paciente, e fico feliz em te acompanhar nesse processo.
           </p>
         </div>
 
@@ -28,12 +27,8 @@ export default function ContractSuccessPage() {
         <Card className="p-8 mb-6">
           <div className="text-center mb-6">
             <h2 className="text-2xl font-semibold mb-4" style={{ color: colors.primary }}>
-              Próximos Passos
+              Próximos passos
             </h2>
-            <p className="text-gray-600 mb-6">
-              Seu contrato foi assinado com sucesso! Agora você está oficialmente 
-              cadastrado(a) como paciente da Psicóloga Fernanda Costa.
-            </p>
           </div>
 
           {/* Steps */}
@@ -47,11 +42,10 @@ export default function ContractSuccessPage() {
               </div>
               <div className="flex-1">
                 <h3 className="font-semibold text-gray-900 mb-1">
-                  📧 Email de Confirmação
+                  🎉 Email de confirmação
                 </h3>
                 <p className="text-gray-600 text-sm">
-                  Você receberá um email com o PDF do contrato assinado e 
-                  informações importantes sobre o processo terapêutico.
+                  Você receberá um email com o PDF do contrato assinado e algumas informações importantes para te orientar ao longo do processo terapêutico.
                 </p>
               </div>
             </div>
@@ -65,11 +59,10 @@ export default function ContractSuccessPage() {
               </div>
               <div className="flex-1">
                 <h3 className="font-semibold text-gray-900 mb-1">
-                  💬 Contato via WhatsApp
+                  🎉 Contato pelo WhatsApp
                 </h3>
                 <p className="text-gray-600 text-sm">
-                  A psicóloga entrará em contato pelo WhatsApp para agendar 
-                  sua primeira sessão e enviar informações adicionais.
+                  Caso precise falar comigo, tirar dúvidas ou alinhar qualquer detalhe, você pode entrar em contato comigo pelo WhatsApp. Esse canal é nosso meio oficial de comunicação fora das sessões.
                 </p>
               </div>
             </div>
@@ -83,11 +76,10 @@ export default function ContractSuccessPage() {
               </div>
               <div className="flex-1">
                 <h3 className="font-semibold text-gray-900 mb-1">
-                  🔐 Acesso ao Portal do Paciente
+                  🎉 Acesso ao Portal do Paciente
                 </h3>
                 <p className="text-gray-600 text-sm">
-                  Em breve você receberá suas credenciais para acessar o portal 
-                  onde poderá escrever seu diário pessoal e acompanhar seu progresso.
+                  Em breve, você receberá suas credenciais para acessar o portal do paciente. Por lá, você poderá escrever no seu diário pessoal e acompanhar seu processo com mais clareza e organização.
                 </p>
               </div>
             </div>
@@ -125,24 +117,9 @@ export default function ContractSuccessPage() {
             Psicóloga - CRP-08/43119
           </p>
           <p className="text-sm text-gray-500">
-            Estou ansiosa para conhecê-lo(a) melhor e iniciarmos nossa jornada 
-            de autoconhecimento e crescimento pessoal juntos!
+            Este é o início de um processo de cuidado, autoconhecimento e construção.
           </p>
         </Card>
-
-        {/* Action Button */}
-        <div className="text-center mt-6">
-          <Button 
-            onClick={() => window.close()}
-            className="px-8 py-3"
-            style={{ 
-              backgroundColor: colors.primaryDark,
-              color: 'white'
-            }}
-          >
-            Fechar Página
-          </Button>
-        </div>
       </div>
     </div>
   )

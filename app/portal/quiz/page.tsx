@@ -166,7 +166,7 @@ export default function QuizPage() {
   // Loading state
   if (isLoading) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-8 sm:space-y-6">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Quizzes</h1>
           <p className="mt-2 text-muted-foreground">
@@ -174,7 +174,7 @@ export default function QuizPage() {
           </p>
         </div>
         
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-5 sm:gap-4 md:grid-cols-2">
           {[1, 2, 3, 4].map((i) => (
             <Card key={i}>
               <CardHeader>
@@ -195,7 +195,7 @@ export default function QuizPage() {
   // Error state
   if (error) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-8 sm:space-y-6">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Quizzes</h1>
           <p className="mt-2 text-muted-foreground">
@@ -224,7 +224,7 @@ export default function QuizPage() {
   // Results view
   if (showResults && activeQuiz) {
     return (
-      <div className="mx-auto max-w-3xl space-y-6">
+      <div className="mx-auto max-w-3xl space-y-8 sm:space-y-6">
         <Card className="border-primary/20">
           <CardHeader className="text-center">
             <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-primary/10">
@@ -268,7 +268,7 @@ export default function QuizPage() {
     const progress = ((currentQuestion + 1) / activeQuiz.questions.length) * 100
 
     return (
-      <div className="mx-auto max-w-3xl space-y-6">
+      <div className="mx-auto max-w-3xl space-y-8 sm:space-y-6">
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
@@ -283,7 +283,7 @@ export default function QuizPage() {
             <Progress value={progress} className="mt-4" />
           </CardHeader>
           <CardContent className="space-y-6">
-            <div className="space-y-4">
+            <div className="space-y-5 sm:space-y-4">
               <h3 className="text-lg font-medium">{question.question_text}</h3>
               
               {/* Multiple Choice */}
@@ -310,7 +310,7 @@ export default function QuizPage() {
 
               {/* Scale (0-10) */}
               {question.question_type === 'scale' && (
-                <div className="space-y-4">
+                <div className="space-y-5 sm:space-y-4">
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <Label className="text-sm font-medium">Escolha um valor de 0 a 10</Label>
@@ -429,7 +429,7 @@ export default function QuizPage() {
   const completedQuizzes = quizzes.filter(q => q.is_completed)
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 sm:space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-foreground">Quizzes</h1>
         <p className="mt-2 text-muted-foreground">
@@ -439,9 +439,9 @@ export default function QuizPage() {
 
       {/* Pending Quizzes */}
       {pendingQuizzes.length > 0 && (
-        <div className="space-y-4">
+        <div className="space-y-5 sm:space-y-4">
           <h2 className="text-xl font-semibold text-foreground">Pendentes</h2>
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-5 sm:gap-4 md:grid-cols-2">
             {pendingQuizzes.map((quiz) => (
               <Card key={quiz.id} className="border-primary/20">
                 <CardHeader>
@@ -479,9 +479,9 @@ export default function QuizPage() {
 
       {/* Completed Quizzes */}
       {completedQuizzes.length > 0 && (
-        <div className="space-y-4">
+        <div className="space-y-5 sm:space-y-4">
           <h2 className="text-xl font-semibold text-foreground">Concluídos</h2>
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-5 sm:gap-4 md:grid-cols-2">
             {completedQuizzes.map((quiz) => (
               <Card key={quiz.id}>
                 <CardHeader>
@@ -518,7 +518,7 @@ export default function QuizPage() {
               <Brain className="mx-auto h-12 w-12 text-primary/50" />
               <h3 className="mt-4 text-lg font-medium text-foreground">Nenhum quiz disponível</h3>
               <p className="mt-2 text-sm text-muted-foreground">
-                Não há questionários disponíveis no momento. Entre em contato com sua psicóloga.
+                Não há questionários disponíveis no momento.
               </p>
             </div>
           </CardContent>

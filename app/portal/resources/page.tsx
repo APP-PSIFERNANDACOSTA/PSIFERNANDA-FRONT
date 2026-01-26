@@ -147,7 +147,7 @@ export default function RecursosPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 sm:space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-foreground">Biblioteca de Recursos</h1>
         <p className="mt-2 text-muted-foreground">Materiais selecionados para apoiar sua jornada</p>
@@ -156,7 +156,7 @@ export default function RecursosPage() {
       {/* Search and Filter */}
       <Card>
         <CardContent className="p-4">
-          <div className="space-y-4">
+          <div className="space-y-5 sm:space-y-4">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
               <Input
@@ -189,7 +189,7 @@ export default function RecursosPage() {
 
       {/* Favorites */}
       {favorites.length > 0 && (
-        <div className="space-y-4">
+        <div className="space-y-5 sm:space-y-4">
           <h2 className="text-xl font-semibold text-foreground">Favoritos</h2>
           <div className="grid gap-4 md:grid-cols-2">
             {resources
@@ -258,7 +258,7 @@ export default function RecursosPage() {
       )}
 
       {/* All Resources */}
-      <div className="space-y-4">
+      <div className="space-y-5 sm:space-y-4">
         <h2 className="text-xl font-semibold text-foreground">
           {selectedCategory === "all" ? "Todos os Recursos" : categories.find((c) => c.id === selectedCategory)?.label}
         </h2>

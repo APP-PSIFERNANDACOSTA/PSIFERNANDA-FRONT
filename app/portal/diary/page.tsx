@@ -113,7 +113,7 @@ export default function DiarioPage() {
 
   if (showNewEntry) {
     return (
-      <div className="mx-auto max-w-3xl space-y-6">
+      <div className="mx-auto max-w-3xl space-y-8 sm:space-y-6">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-foreground">
@@ -192,7 +192,7 @@ export default function DiarioPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 sm:space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Diário Emocional</h1>
@@ -236,7 +236,7 @@ export default function DiarioPage() {
         </Card>
 
         {/* Entries */}
-        <div className="space-y-4 lg:col-span-2">
+        <div className="space-y-5 sm:space-y-4 lg:col-span-2">
           {/* Header com filtro ativo */}
           {isFilteredByDate && (
             <Card className="border-primary/20 bg-primary/5">

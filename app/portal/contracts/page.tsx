@@ -77,7 +77,7 @@ export default function PatientContractsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 sm:space-y-6">
         {/* Header */}
         <div>
           <h1 className="text-2xl font-bold">Meus Contratos</h1>
@@ -100,7 +100,7 @@ export default function PatientContractsPage() {
             </CardContent>
           </Card>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-5 sm:space-y-4">
             {contracts.map((contract) => (
               <Card key={contract.id} className="hover:shadow-md transition-shadow">
                 <CardHeader>

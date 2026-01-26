@@ -80,7 +80,7 @@ export default function SessoesPage() {
 
   if (isLoading) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-8 sm:space-y-6">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Minhas Sessões</h1>
           <p className="mt-2 text-muted-foreground">Acompanhe seu histórico e próximas sessões terapêuticas</p>
@@ -97,7 +97,7 @@ export default function SessoesPage() {
 
   if (error) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-8 sm:space-y-6">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Minhas Sessões</h1>
           <p className="mt-2 text-muted-foreground">Acompanhe seu histórico e próximas sessões terapêuticas</p>
@@ -113,7 +113,7 @@ export default function SessoesPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 sm:space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-foreground">Minhas Sessões</h1>
         <p className="mt-2 text-muted-foreground">Acompanhe seu histórico e próximas sessões terapêuticas</p>
@@ -164,7 +164,7 @@ export default function SessoesPage() {
 
       {/* Other Scheduled/Rescheduled Sessions */}
       {otherSessions.filter((s) => s.status === "scheduled" || s.status === "rescheduled").length > 0 && (
-        <div className="space-y-4">
+        <div className="space-y-5 sm:space-y-4">
           <h2 className="text-xl font-semibold text-foreground">Próximas Sessões</h2>
           {otherSessions
             .filter((s) => s.status === "scheduled" || s.status === "rescheduled")
@@ -252,7 +252,7 @@ export default function SessoesPage() {
 
       {/* Cancelled/No Show Sessions */}
       {sessions.filter((s) => s.status === "cancelled" || s.status === "no_show").length > 0 && (
-        <div className="space-y-4">
+        <div className="space-y-5 sm:space-y-4">
           <h2 className="text-xl font-semibold text-foreground">Outras Sessões</h2>
           {sessions
             .filter((s) => s.status === "cancelled" || s.status === "no_show")

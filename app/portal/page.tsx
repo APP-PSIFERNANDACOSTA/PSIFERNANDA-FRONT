@@ -129,7 +129,7 @@ export default function PatientPortalPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-12 sm:space-y-6">
       {/* Welcome Section */}
       <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-background">
         <CardHeader>
@@ -273,7 +273,7 @@ export default function PatientPortalPage() {
           <CardDescription>Resumo do seu engajamento</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid gap-6 sm:gap-4 sm:grid-cols-3">
             <div className="flex items-center gap-3 rounded-lg border border-border p-4">
               <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
                 <Heart className="h-6 w-6 text-primary" />
@@ -318,7 +318,7 @@ export default function PatientPortalPage() {
       </Card>
 
       {/* Quick Actions - Melhorado para mobile - Inclui itens que não estão no bottom nav */}
-      <div className="grid gap-4 sm:gap-5 grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-6 sm:gap-5 grid-cols-2 lg:grid-cols-4">
         <Link href="/portal/exercises" className="block">
           <Card className="cursor-pointer transition-all hover:bg-accent active:scale-[0.98] touch-manipulation h-full">
             <CardContent className="flex flex-col items-center justify-center gap-2 p-5 sm:p-6 min-h-[100px]">

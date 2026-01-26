@@ -120,7 +120,7 @@ export default function ExerciciosPage() {
         : 0
 
     return (
-      <div className="mx-auto max-w-3xl space-y-6">
+      <div className="mx-auto max-w-3xl space-y-8 sm:space-y-6">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-foreground">{activeExercise.title}</h1>
@@ -296,7 +296,7 @@ export default function ExerciciosPage() {
       </div>
 
       {/* Lista de exercícios */}
-      <div className="space-y-4">
+      <div className="space-y-5 sm:space-y-4">
         <h2 className="text-xl font-semibold text-foreground">Exercícios disponíveis</h2>
         {isLoading ? (
           <p className="text-sm text-muted-foreground">Carregando exercícios...</p>

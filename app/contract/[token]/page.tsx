@@ -11,10 +11,17 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Loader2, CheckCircle, AlertCircle, FileText } from "lucide-react"
+import { ScaleLoader } from "react-spinners"
+import { useColors } from "@/hooks/use-colors"
 import contractService from "@/services/contract-service"
 import type { Contract, SignContractData } from "@/types/contract"
 import { PAYMENT_DAY_OPTIONS } from "@/types/contract"
 import { showErrorToast, showSuccessToast } from "@/lib/toast-helpers"
+
+/** Tempo mínimo que a tela de loading deve aparecer (ms) */
+const MIN_LOADING_MS = 5500
+/** Intervalo entre cada etapa do loading (ms) */
+const STEP_INTERVAL_MS = 1600
 
 export default function ContractSignPage() {
   const params = useParams()
@@ -24,7 +31,16 @@ export default function ContractSignPage() {
   const [contract, setContract] = useState<Contract | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isSigning, setIsSigning] = useState(false)
-  const [isSigned, setIsSigned] = useState(false)
+  const [signingStep, setSigningStep] = useState(0)
+  const { colors } = useColors()
+
+  const SIGNING_STEPS = [
+    "Validando seus dados...",
+    "Assinando seu contrato...",
+    "Gerando o documento em PDF...",
+    "Preparando sua cópia por e-mail...",
+    "Finalizando...",
+  ]
   
   const [formData, setFormData] = useState<SignContractData>({
     patient_name: '',
@@ -77,19 +93,25 @@ export default function ContractSignPage() {
       return
     }
 
+    const startedAt = Date.now()
     setIsSigning(true)
+    setSigningStep(0)
+    let stepInterval: ReturnType<typeof setInterval> | null = setInterval(() => {
+      setSigningStep((s) => Math.min(s + 1, SIGNING_STEPS.length - 1))
+    }, STEP_INTERVAL_MS)
     try {
       const response = await contractService.sign(token, formData)
+      if (stepInterval) clearInterval(stepInterval)
+      stepInterval = null
+      setSigningStep(SIGNING_STEPS.length - 1)
       if (response.success) {
-        setIsSigned(true)
         showSuccessToast("Contrato assinado!", "Seu contrato foi assinado com sucesso")
-        
-        // Redirect após 3 segundos
-        setTimeout(() => {
-          router.push('/contract/success')
-        }, 3000)
+        const elapsed = Date.now() - startedAt
+        const wait = Math.max(0, MIN_LOADING_MS - elapsed) + 800
+        setTimeout(() => router.push('/contract/success'), wait)
       }
     } catch (error: any) {
+      if (stepInterval) clearInterval(stepInterval)
       if (error.response?.status === 422) {
         const errors = error.response.data.errors
         const firstError = Object.values(errors)[0] as string[]
@@ -100,13 +122,30 @@ export default function ContractSignPage() {
           error.response?.data?.message || "Tente novamente mais tarde"
         )
       }
-    } finally {
       setIsSigning(false)
+      return
     }
   }
 
   const formatPrice = (price: string) => {
     return `R$ ${Number(price).toFixed(2).replace('.', ',')}`
+  }
+
+  /** Formata telefone BR: (XX) XXXXX-XXXX ou (XX) XXXX-XXXX */
+  const formatPhoneBR = (value: string): string => {
+    const digits = value.replace(/\D/g, '').slice(0, 11)
+    if (digits.length <= 2) return digits ? `(${digits}` : ''
+    if (digits.length <= 6) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`
+    return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`
+  }
+
+  /** Formata CPF: XXX.XXX.XXX-XX */
+  const formatCPF = (value: string): string => {
+    const digits = value.replace(/\D/g, '').slice(0, 11)
+    if (digits.length <= 3) return digits
+    if (digits.length <= 6) return `${digits.slice(0, 3)}.${digits.slice(3)}`
+    if (digits.length <= 9) return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6)}`
+    return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9)}`
   }
 
   const getPaymentTypeLabel = (type: string) => {
@@ -133,19 +172,71 @@ export default function ContractSignPage() {
     )
   }
 
-  if (isSigned) {
+  if (isSigning) {
+    const progressPercent = ((signingStep + 1) / SIGNING_STEPS.length) * 100
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 p-4">
-        <Card className="w-full max-w-md">
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <CheckCircle className="h-16 w-16 text-green-600 mb-4" />
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">Contrato Assinado!</h2>
-            <p className="text-gray-600 text-center mb-4">
-              Seu contrato foi assinado com sucesso. Você receberá um email de confirmação em breve.
+      <div
+        className="min-h-screen flex items-center justify-center p-4"
+        style={{
+          background: `linear-gradient(135deg, ${colors.primary}0c 0%, ${colors.primary}06 50%, #fef9fb 100%)`,
+        }}
+      >
+        <Card className="w-full max-w-md border-0 shadow-2xl overflow-hidden animate-in fade-in duration-500" style={{ borderColor: `${colors.primary}25` }}>
+          <CardContent className="flex flex-col items-center justify-center py-10 px-8">
+            <div
+              className="w-24 h-24 rounded-2xl flex items-center justify-center mb-6 shadow-lg"
+              style={{ backgroundColor: `${colors.primary}18` }}
+            >
+              <ScaleLoader
+                color={colors.primary}
+                height={36}
+                width={5}
+                radius={3}
+                margin={4}
+              />
+            </div>
+            <h2 className="text-xl font-bold text-gray-900 mb-1 text-center" style={{ color: colors.primary }}>
+              Contrato sendo preparado
+            </h2>
+            <p className="text-gray-500 text-sm text-center mb-6">
+              Não feche esta página.
             </p>
-            <p className="text-sm text-gray-500 text-center">
-              Redirecionando para a página de sucesso...
-            </p>
+            <div className="w-full h-2 rounded-full bg-gray-100 overflow-hidden mb-8">
+              <div
+                className="h-full rounded-full transition-all duration-700 ease-out"
+                style={{
+                  width: `${progressPercent}%`,
+                  backgroundColor: colors.primary,
+                }}
+              />
+            </div>
+            <div className="w-full space-y-3">
+              {SIGNING_STEPS.map((label, index) => (
+                <div
+                  key={index}
+                  className="flex items-center gap-3 rounded-xl px-4 py-3 transition-all duration-300"
+                  style={{
+                    backgroundColor: index <= signingStep ? `${colors.primary}14` : 'transparent',
+                    borderLeft: `4px solid ${index <= signingStep ? colors.primary : '#e5e7eb'}`,
+                  }}
+                >
+                  {index < signingStep ? (
+                    <CheckCircle className="w-5 h-5 shrink-0" style={{ color: colors.primary }} />
+                  ) : index === signingStep ? (
+                    <ScaleLoader color={colors.primary} height={18} width={3} radius={2} margin={2} />
+                  ) : (
+                    <div className="w-5 h-5 shrink-0 rounded-full border-2 border-gray-200" />
+                  )}
+                  <span
+                    className={`text-sm font-medium transition-colors ${
+                      index <= signingStep ? 'text-gray-900' : 'text-gray-400'
+                    }`}
+                  >
+                    {label}
+                  </span>
+                </div>
+              ))}
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -251,9 +342,11 @@ export default function ContractSignPage() {
                   <Label htmlFor="patient_phone">Telefone/WhatsApp *</Label>
                   <Input
                     id="patient_phone"
+                    type="tel"
                     value={formData.patient_phone}
-                    onChange={(e) => setFormData({ ...formData, patient_phone: e.target.value })}
+                    onChange={(e) => setFormData({ ...formData, patient_phone: formatPhoneBR(e.target.value) })}
                     placeholder="(00) 00000-0000"
+                    maxLength={16}
                     required
                   />
                 </div>
@@ -263,8 +356,9 @@ export default function ContractSignPage() {
                   <Input
                     id="patient_cpf"
                     value={formData.patient_cpf}
-                    onChange={(e) => setFormData({ ...formData, patient_cpf: e.target.value })}
+                    onChange={(e) => setFormData({ ...formData, patient_cpf: formatCPF(e.target.value) })}
                     placeholder="000.000.000-00"
+                    maxLength={14}
                     required
                   />
                 </div>

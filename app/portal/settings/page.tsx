@@ -13,7 +13,7 @@ export default function ConfiguracoesPage() {
   const { user } = useAuth()
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    <div className="mx-auto max-w-3xl space-y-8 sm:space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-foreground">Configurações</h1>
         <p className="mt-2 text-muted-foreground">Gerencie suas preferências e informações pessoais</p>
