@@ -18,10 +18,10 @@ import {
   useSortable,
 } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
-import { DashboardLayout } from "@/components/dashboard-layout"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+import { DashboardLayout } from "../../components/dashboard-layout"
+import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card"
+import { Button } from "../../components/ui/button"
+import { Input } from "../../components/ui/input"
 import {
   Bell,
   Mail,
@@ -41,7 +41,7 @@ import {
   PlayCircle,
   RotateCcw,
 } from "lucide-react"
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "../../components/ui/tabs"
 import {
   Dialog,
   DialogContent,
@@ -49,24 +49,24 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Badge } from "@/components/ui/badge"
-import { Switch } from "@/components/ui/switch"
-import { Separator } from "@/components/ui/separator"
-import { useToast } from "@/hooks/use-toast"
-import { usePushNotifications } from "@/hooks/use-push-notifications"
-import messageService from "@/services/message-service"
-import patientService from "@/services/patient-service"
-import taskService from "@/services/task-service"
-import notificationService from "@/services/notification-service"
-import type { Message } from "@/types/message"
-import type { Patient } from "@/types/patient"
-import type { Task, TaskStatus, TaskPriority, TaskCategory, TaskStats } from "@/types/task"
-import type { Notification } from "@/types/notification"
-import { showErrorToast, showSuccessToast } from "@/lib/toast-helpers"
+} from "../../components/ui/dialog"
+import { Label } from "../../components/ui/label"
+import { Textarea } from "../../components/ui/textarea"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select"
+import { Badge } from "../../components/ui/badge"
+import { Switch } from "../../components/ui/switch"
+import { Separator } from "../../components/ui/separator"
+import { useToast } from "../../hooks/use-toast"
+import { usePushNotifications } from "../../hooks/use-push-notifications"
+import messageService from "../../services/message-service"
+import patientService from "../../services/patient-service"
+import taskService from "../../services/task-service"
+import notificationService from "../../services/notification-service"
+import type { Message } from "../../types/message"
+import type { Patient } from "../../types/patient"
+import type { Task, TaskStatus, TaskPriority, TaskCategory, TaskStats } from "../../types/task"
+import type { Notification } from "../../types/notification"
+import { showErrorToast, showSuccessToast } from "../../lib/toast-helpers"
 import { formatDistanceToNow } from "date-fns"
 import { ptBR } from "date-fns/locale"
 
