@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "build": "next build && ./post-build.sh",
+    "build": "next build && bash post-build.sh",
     "dev": "next dev",
     "lint": "eslint .",
     "start": "next start"
