@@ -108,18 +108,87 @@ class ContractService {
           responseType: "blob",
         });
 
+      // Verificar se a resposta é realmente um PDF ou um erro JSON
+      const contentType = response.headers['content-type'] || '';
+      
+      // Se for JSON ou HTML, provavelmente é uma mensagem de erro
+      if (contentType.includes('application/json') || contentType.includes('text/html')) {
+        const text = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsText(response.data);
+        });
+        
+        let errorMessage = 'Erro ao baixar PDF';
+        try {
+          const errorData = JSON.parse(text);
+          errorMessage = errorData.message || errorData.error || errorMessage;
+        } catch {
+          errorMessage = text || errorMessage;
+        }
+        
+        throw new Error(errorMessage);
+      }
+
+      // Verificar se o blob não está vazio
+      if (response.data.size === 0) {
+        throw new Error('PDF vazio ou não encontrado');
+      }
+
       // Create blob URL and open in new tab
       const blob = new Blob([response.data], { type: "application/pdf" });
       const url = window.URL.createObjectURL(blob);
-      window.open(url, "_blank");
-
+      
+      // Criar link de download
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `contrato_${id}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
       // Clean up the URL after a delay
       setTimeout(() => {
         window.URL.revokeObjectURL(url);
       }, 1000);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Erro ao baixar PDF:", error);
-      throw error;
+      
+      // Extrair mensagem de erro mais amigável
+      let errorMessage = 'Erro ao baixar PDF';
+      
+      if (error.response) {
+        // Se for uma resposta de erro do Axios
+        if (error.response.data instanceof Blob) {
+          // Tentar ler o blob como texto para ver a mensagem de erro
+          try {
+            const text = await new Promise<string>((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onload = () => resolve(reader.result as string);
+              reader.onerror = reject;
+              reader.readAsText(error.response.data);
+            });
+            
+            try {
+              const errorData = JSON.parse(text);
+              errorMessage = errorData.message || errorData.error || errorMessage;
+            } catch {
+              errorMessage = text || errorMessage;
+            }
+          } catch {
+            // Se não conseguir ler o blob, usar mensagem padrão
+          }
+        } else if (typeof error.response.data === 'object') {
+          errorMessage = error.response.data.message || error.response.data.error || errorMessage;
+        } else if (typeof error.response.data === 'string') {
+          errorMessage = error.response.data;
+        }
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      throw new Error(errorMessage);
     }
   }
 
@@ -134,18 +203,87 @@ class ContractService {
           responseType: "blob",
         });
 
+      // Verificar se a resposta é realmente um PDF ou um erro JSON
+      const contentType = response.headers['content-type'] || '';
+      
+      // Se for JSON ou HTML, provavelmente é uma mensagem de erro
+      if (contentType.includes('application/json') || contentType.includes('text/html')) {
+        const text = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsText(response.data);
+        });
+        
+        let errorMessage = 'Erro ao baixar PDF';
+        try {
+          const errorData = JSON.parse(text);
+          errorMessage = errorData.message || errorData.error || errorMessage;
+        } catch {
+          errorMessage = text || errorMessage;
+        }
+        
+        throw new Error(errorMessage);
+      }
+
+      // Verificar se o blob não está vazio
+      if (response.data.size === 0) {
+        throw new Error('PDF vazio ou não encontrado');
+      }
+
       // Create blob URL and open in new tab
       const blob = new Blob([response.data], { type: "application/pdf" });
       const url = window.URL.createObjectURL(blob);
-      window.open(url, "_blank");
-
+      
+      // Criar link de download
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `contrato_${id}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
       // Clean up the URL after a delay
       setTimeout(() => {
         window.URL.revokeObjectURL(url);
       }, 1000);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Erro ao baixar PDF:", error);
-      throw error;
+      
+      // Extrair mensagem de erro mais amigável
+      let errorMessage = 'Erro ao baixar PDF';
+      
+      if (error.response) {
+        // Se for uma resposta de erro do Axios
+        if (error.response.data instanceof Blob) {
+          // Tentar ler o blob como texto para ver a mensagem de erro
+          try {
+            const text = await new Promise<string>((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onload = () => resolve(reader.result as string);
+              reader.onerror = reject;
+              reader.readAsText(error.response.data);
+            });
+            
+            try {
+              const errorData = JSON.parse(text);
+              errorMessage = errorData.message || errorData.error || errorMessage;
+            } catch {
+              errorMessage = text || errorMessage;
+            }
+          } catch {
+            // Se não conseguir ler o blob, usar mensagem padrão
+          }
+        } else if (typeof error.response.data === 'object') {
+          errorMessage = error.response.data.message || error.response.data.error || errorMessage;
+        } else if (typeof error.response.data === 'string') {
+          errorMessage = error.response.data;
+        }
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      throw new Error(errorMessage);
     }
   }
 

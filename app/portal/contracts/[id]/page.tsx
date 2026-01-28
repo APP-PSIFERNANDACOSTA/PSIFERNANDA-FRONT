@@ -6,7 +6,7 @@ import { PortalDashboardLayout } from "@/components/portal-dashboard-layout"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, File, FileText, Download, Loader2, Calendar, DollarSign, Clock } from "lucide-react"
+import { ArrowLeft, File, FileText, Calendar, DollarSign, Clock } from "lucide-react"
 import contractService from "@/services/contract-service"
 import type { Contract } from "@/types/contract"
 import { CONTRACT_STATUS_LABELS } from "@/types/contract"
@@ -19,7 +19,6 @@ export default function PatientContractViewPage() {
   
   const [contract, setContract] = useState<Contract | null>(null)
   const [isLoading, setIsLoading] = useState(true)
-  const [isDownloading, setIsDownloading] = useState(false)
 
   useEffect(() => {
     if (contractId) {
@@ -46,18 +45,54 @@ export default function PatientContractViewPage() {
     }
   }
 
-  const handleDownloadPdf = async () => {
-    if (!contract) return
+
+  const formatContractText = (text: string) => {
+    if (!text) return ''
     
-    setIsDownloading(true)
-    try {
-      await contractService.downloadPdf(contract.id)
-    } catch (error) {
-      console.error("Erro ao baixar PDF:", error)
-      showErrorToast("Erro ao baixar PDF")
-    } finally {
-      setIsDownloading(false)
-    }
+    // Substituir quebras de linha duplas por parágrafos
+    // Primeiro, normalizar todas as quebras de linha
+    const normalized = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+    
+    // Dividir por quebras de linha duplas ou simples para criar parágrafos
+    const paragraphs = normalized.split(/\n\n+/).filter(p => p.trim())
+    
+    return paragraphs.map((paragraph, index) => {
+      // Verificar se o parágrafo começa com um número (ex: "1. Pagamento")
+      const isNumbered = /^\d+\.\s/.test(paragraph.trim())
+      
+      // Dividir parágrafos longos em linhas individuais se necessário
+      const lines = paragraph.split('\n').filter(l => l.trim())
+      
+      return (
+        <div key={index} className={isNumbered ? "mb-4" : "mb-3"}>
+          {lines.map((line, lineIndex) => {
+            const trimmedLine = line.trim()
+            // Se a linha começa com "- ", é um item de lista
+            if (trimmedLine.startsWith('- ')) {
+              return (
+                <div key={lineIndex} className="ml-4 mb-1 text-sm leading-relaxed">
+                  {trimmedLine}
+                </div>
+              )
+            }
+            // Se é uma linha numerada (ex: "1. Pagamento")
+            if (/^\d+\.\s/.test(trimmedLine)) {
+              return (
+                <h4 key={lineIndex} className="font-semibold text-base mb-2 mt-4 first:mt-0">
+                  {trimmedLine}
+                </h4>
+              )
+            }
+            // Linha normal
+            return (
+              <p key={lineIndex} className="text-sm leading-relaxed mb-2">
+                {trimmedLine}
+              </p>
+            )
+          })}
+        </div>
+      )
+    })
   }
 
   const getPaymentTypeLabel = (type: string) => {
@@ -202,8 +237,8 @@ export default function PatientContractViewPage() {
                 <CardTitle>Texto do Contrato</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="prose max-w-none">
-                  <div dangerouslySetInnerHTML={{ __html: contract.contract_text }} />
+                <div className="prose max-w-none text-gray-700">
+                  {formatContractText(contract.contract_text)}
                 </div>
               </CardContent>
             </Card>
@@ -216,20 +251,7 @@ export default function PatientContractViewPage() {
                 <CardTitle>Ações</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                {contract.status === 'signed' && contract.pdf_path && (
-                  <Button
-                    onClick={handleDownloadPdf}
-                    disabled={isDownloading}
-                    className="w-full justify-start"
-                  >
-                    {isDownloading ? (
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    ) : (
-                      <Download className="h-4 w-4 mr-2" />
-                    )}
-                    Baixar PDF
-                  </Button>
-                )}
+                {/* Botão de download removido - paciente só pode ver o contrato */}
               </CardContent>
             </Card>
 

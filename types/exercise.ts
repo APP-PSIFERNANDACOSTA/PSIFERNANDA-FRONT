@@ -1,4 +1,9 @@
-export type ExerciseType = "timer" | "counter";
+export type ExerciseType = "timer" | "counter" | "guided";
+
+export interface ExerciseStep {
+  description: string;
+  duration_seconds: number;
+}
 
 export interface Exercise {
   id: number;
@@ -9,6 +14,7 @@ export interface Exercise {
   type: ExerciseType;
   duration_seconds: number | null;
   target_reps: number | null;
+  steps: ExerciseStep[] | null;
   is_active: boolean;
   created_at: string;
   updated_at: string;

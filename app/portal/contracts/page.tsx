@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { File, FileText, Download, Loader2, Calendar, DollarSign, Eye } from "lucide-react"
+import { File, FileText, Loader2, Calendar, DollarSign, Eye } from "lucide-react"
 import contractService from "@/services/contract-service"
 import type { Contract } from "@/types/contract"
 import { CONTRACT_STATUS_LABELS } from "@/types/contract"
@@ -35,14 +35,6 @@ export default function PatientContractsPage() {
     }
   }
 
-  const handleDownloadPdf = async (contractId: number) => {
-    try {
-      await contractService.downloadMyContractPdf(contractId)
-    } catch (error) {
-      console.error("Erro ao baixar PDF:", error)
-      showErrorToast("Erro ao baixar PDF")
-    }
-  }
 
   const getPaymentTypeLabel = (type: string) => {
     switch (type) {
@@ -66,14 +58,50 @@ export default function PatientContractsPage() {
   const formatContractText = (text: string) => {
     if (!text) return ''
     
-    // Dividir o texto em parágrafos baseado em quebras de linha duplas
-    const paragraphs = text.split('\n\n').filter(p => p.trim())
+    // Substituir quebras de linha duplas por parágrafos
+    // Primeiro, normalizar todas as quebras de linha
+    const normalized = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
     
-    return paragraphs.map((paragraph, index) => (
-      <p key={index} className="mb-4 text-sm leading-relaxed">
-        {paragraph.trim()}
-      </p>
-    ))
+    // Dividir por quebras de linha duplas ou simples para criar parágrafos
+    const paragraphs = normalized.split(/\n\n+/).filter(p => p.trim())
+    
+    return paragraphs.map((paragraph, index) => {
+      // Verificar se o parágrafo começa com um número (ex: "1. Pagamento")
+      const isNumbered = /^\d+\.\s/.test(paragraph.trim())
+      
+      // Dividir parágrafos longos em linhas individuais se necessário
+      const lines = paragraph.split('\n').filter(l => l.trim())
+      
+      return (
+        <div key={index} className={isNumbered ? "mb-4" : "mb-3"}>
+          {lines.map((line, lineIndex) => {
+            const trimmedLine = line.trim()
+            // Se a linha começa com "- ", é um item de lista
+            if (trimmedLine.startsWith('- ')) {
+              return (
+                <div key={lineIndex} className="ml-4 mb-1 text-sm leading-relaxed">
+                  {trimmedLine}
+                </div>
+              )
+            }
+            // Se é uma linha numerada (ex: "1. Pagamento")
+            if (/^\d+\.\s/.test(trimmedLine)) {
+              return (
+                <h4 key={lineIndex} className="font-semibold text-base mb-2 mt-4 first:mt-0">
+                  {trimmedLine}
+                </h4>
+              )
+            }
+            // Linha normal
+            return (
+              <p key={lineIndex} className="text-sm leading-relaxed mb-2">
+                {trimmedLine}
+              </p>
+            )
+          })}
+        </div>
+      )
+    })
   }
 
   return (
@@ -208,15 +236,6 @@ export default function PatientContractsPage() {
                         </DialogContent>
                       </Dialog>
                       
-                      {contract.status === 'signed' && contract.pdf_path && (
-                        <Button
-                          onClick={() => handleDownloadPdf(contract.id)}
-                          className="w-full sm:w-auto"
-                        >
-                          <Download className="h-4 w-4 mr-2" />
-                          Baixar PDF
-                        </Button>
-                      )}
                     </div>
                   </div>
 

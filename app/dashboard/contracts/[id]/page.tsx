@@ -53,10 +53,11 @@ export default function ContractViewPage() {
     setIsDownloading(true)
     try {
       await contractService.downloadPdf(contract.id)
-      showSuccessToast("PDF aberto com sucesso!")
-    } catch (error) {
+      showSuccessToast("PDF baixado com sucesso!")
+    } catch (error: any) {
       console.error("Erro ao baixar PDF:", error)
-      showErrorToast("Erro ao baixar PDF")
+      const errorMessage = error?.message || error?.response?.data?.message || "Erro ao baixar PDF"
+      showErrorToast("Erro ao baixar PDF", errorMessage)
     } finally {
       setIsDownloading(false)
     }
@@ -117,6 +118,55 @@ export default function ContractViewPage() {
       case 'inactive': return 'bg-gray-100 text-gray-800'
       default: return 'bg-gray-100 text-gray-800'
     }
+  }
+
+  const formatContractText = (text: string) => {
+    if (!text) return ''
+    
+    // Substituir quebras de linha duplas por parágrafos
+    // Primeiro, normalizar todas as quebras de linha
+    const normalized = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+    
+    // Dividir por quebras de linha duplas ou simples para criar parágrafos
+    const paragraphs = normalized.split(/\n\n+/).filter(p => p.trim())
+    
+    return paragraphs.map((paragraph, index) => {
+      // Verificar se o parágrafo começa com um número (ex: "1. Pagamento")
+      const isNumbered = /^\d+\.\s/.test(paragraph.trim())
+      
+      // Dividir parágrafos longos em linhas individuais se necessário
+      const lines = paragraph.split('\n').filter(l => l.trim())
+      
+      return (
+        <div key={index} className={isNumbered ? "mb-4" : "mb-3"}>
+          {lines.map((line, lineIndex) => {
+            const trimmedLine = line.trim()
+            // Se a linha começa com "- ", é um item de lista
+            if (trimmedLine.startsWith('- ')) {
+              return (
+                <div key={lineIndex} className="ml-4 mb-1 text-sm leading-relaxed">
+                  {trimmedLine}
+                </div>
+              )
+            }
+            // Se é uma linha numerada (ex: "1. Pagamento")
+            if (/^\d+\.\s/.test(trimmedLine)) {
+              return (
+                <h4 key={lineIndex} className="font-semibold text-base mb-2 mt-4 first:mt-0">
+                  {trimmedLine}
+                </h4>
+              )
+            }
+            // Linha normal
+            return (
+              <p key={lineIndex} className="text-sm leading-relaxed mb-2">
+                {trimmedLine}
+              </p>
+            )
+          })}
+        </div>
+      )
+    })
   }
 
   if (isLoading) {
@@ -224,8 +274,8 @@ export default function ContractViewPage() {
                 <CardTitle>Texto do Contrato</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="prose max-w-none">
-                  <div dangerouslySetInnerHTML={{ __html: contract.contract_text }} />
+                <div className="prose max-w-none text-gray-700">
+                  {formatContractText(contract.contract_text)}
                 </div>
               </CardContent>
             </Card>
@@ -247,18 +297,19 @@ export default function ContractViewPage() {
                   {linkCopied ? "Copiado!" : "Copiar Link"}
                 </Button>
                 
-                {contract.status === 'signed' && contract.pdf_path && (
+                {contract.status === 'signed' && (
                   <Button
                     onClick={handleDownloadPdf}
                     disabled={isDownloading}
                     className="w-full justify-start"
+                    variant={contract.pdf_path ? "default" : "outline"}
                   >
                     {isDownloading ? (
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                     ) : (
                       <Download className="h-4 w-4 mr-2" />
                     )}
-                    Baixar PDF
+                    {contract.pdf_path ? "Baixar PDF" : "Gerar e Baixar PDF"}
                   </Button>
                 )}
                 

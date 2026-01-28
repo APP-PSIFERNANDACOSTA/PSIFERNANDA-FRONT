@@ -18,7 +18,7 @@ import { DiaryEntryCard } from "@/components/diary-entry-card"
 import { DiaryFilterDropdown } from "@/components/diary-filter-dropdown"
 import { WeeklyAnalysisDropdown } from "@/components/weekly-analysis-dropdown"
 import { PatientSessions } from "@/components/patient-sessions"
-import { PatientRecords } from "@/components/patient-records"
+// import { PatientRecords } from "@/components/patient-records" // Temporariamente comentado
 import { quizAssignmentService } from "@/services/quiz-assignment-service"
 import type { Patient, PortalAccessCredentials } from "@/types/patient"
 import { PAYMENT_TYPES } from "@/types/patient"
@@ -48,6 +48,7 @@ export default function PatientDetailsPage() {
   const [isLoadingContracts, setIsLoadingContracts] = useState(false)
   const [quizAssignments, setQuizAssignments] = useState<PatientQuizAssignment[]>([])
   const [isLoadingQuizzes, setIsLoadingQuizzes] = useState(false)
+  const [activeTab, setActiveTab] = useState<string>("info")
 
     useEffect(() => {
         const loadPatient = async () => {
@@ -77,6 +78,14 @@ export default function PatientDetailsPage() {
             loadDiaryEntries()
         }
     }, [patient])
+
+    // Carregar contratos automaticamente quando a aba "contracts" for aberta
+    useEffect(() => {
+        if (activeTab === "contracts" && patientId && !isLoadingContracts) {
+            loadContracts()
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [activeTab, patientId])
 
     const loadDiaryEntries = async (filters: DiaryFilters = {}) => {
         if (!patientId) return
@@ -263,7 +272,7 @@ export default function PatientDetailsPage() {
                 </div>
 
                 {/* Tabs */}
-                <Tabs defaultValue="info" className="space-y-6">
+                <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
                     <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
                         <TabsList className="inline-flex w-full sm:inline-flex gap-1 min-w-max sm:min-w-0">
                             <TabsTrigger value="info" className="gap-1 sm:gap-2 text-xs sm:text-sm whitespace-nowrap">
@@ -279,11 +288,13 @@ export default function PatientDetailsPage() {
                                 <Calendar className="h-3 w-3 sm:h-4 sm:w-4" />
                                 Sessões
                             </TabsTrigger>
+                            {/* Temporariamente comentado
                             <TabsTrigger value="records" className="gap-1 sm:gap-2 text-xs sm:text-sm whitespace-nowrap">
                                 <FileText className="h-3 w-3 sm:h-4 sm:w-4" />
                                 <span className="hidden sm:inline">Prontuários</span>
                                 <span className="sm:hidden">Pront.</span>
                             </TabsTrigger>
+                            */}
                             <TabsTrigger value="contracts" className="gap-1 sm:gap-2 text-xs sm:text-sm whitespace-nowrap">
                                 <File className="h-3 w-3 sm:h-4 sm:w-4" />
                                 Contratos
@@ -609,21 +620,11 @@ export default function PatientDetailsPage() {
 
                     {/* Contratos Tab */}
                     <TabsContent value="contracts" className="space-y-4 sm:space-y-6 mt-4 sm:mt-6">
-                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
-                            <div>
-                                <h3 className="text-base sm:text-lg font-semibold">Contratos do Paciente</h3>
-                                <p className="text-xs sm:text-sm text-gray-500">
-                                    Histórico de contratos assinados por {patient?.name}
-                                </p>
-                            </div>
-                            <Button onClick={loadContracts} disabled={isLoadingContracts} className="w-full sm:w-auto">
-                                {isLoadingContracts ? (
-                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                ) : (
-                                    <File className="h-4 w-4 mr-2" />
-                                )}
-                                Carregar Contratos
-                            </Button>
+                        <div>
+                            <h3 className="text-base sm:text-lg font-semibold">Contratos do Paciente</h3>
+                            <p className="text-xs sm:text-sm text-gray-500">
+                                Histórico de contratos assinados por {patient?.name}
+                            </p>
                         </div>
 
                         {isLoadingContracts ? (
@@ -677,8 +678,10 @@ export default function PatientDetailsPage() {
                                                             onClick={async () => {
                                                                 try {
                                                                     await contractService.downloadPdf(contract.id)
-                                                                } catch (error) {
+                                                                } catch (error: any) {
                                                                     console.error('Erro ao baixar PDF:', error)
+                                                                    const errorMessage = error?.message || error?.response?.data?.message || "Erro ao baixar PDF"
+                                                                    showErrorToast("Erro ao baixar PDF", errorMessage)
                                                                 }
                                                             }}
                                                             className="w-full sm:w-auto"

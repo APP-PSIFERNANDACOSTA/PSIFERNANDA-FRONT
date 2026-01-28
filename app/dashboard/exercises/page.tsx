@@ -1,59 +1,21 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import Link from "next/link"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Input } from "@/components/ui/input"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
-import { Textarea } from "@/components/ui/textarea"
-import { Plus, Edit2, Loader2, Activity, Wind, Brain, Target, Sparkles } from "lucide-react"
+import { Plus, Edit2, Loader2, Activity, Wind, Brain, Target } from "lucide-react"
 import exerciseService from "@/services/exercise-service"
-import type { Exercise, ExerciseType } from "@/types/exercise"
+import type { Exercise } from "@/types/exercise"
 import { showErrorToast, showSuccessToast } from "@/lib/toast-helpers"
 
-interface ExerciseFormState {
-  id?: number
-  title: string
-  description: string
-  category: string
-  type: ExerciseType
-  durationMinutes: string
-  targetReps: string
-  is_active: boolean
-}
-
-const defaultForm: ExerciseFormState = {
-  title: "",
-  description: "",
-  category: "",
-  type: "timer",
-  durationMinutes: "5",
-  targetReps: "",
-  is_active: true,
-}
-
 export default function ExercisesPage() {
-  const router = useRouter()
   const [exercises, setExercises] = useState<Exercise[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [isSaving, setIsSaving] = useState(false)
-  const [isDialogOpen, setIsDialogOpen] = useState(false)
-  const [isAIDialogOpen, setIsAIDialogOpen] = useState(false)
-  const [aiGoal, setAIGoal] = useState("")
-  const [isGeneratingAI, setIsGeneratingAI] = useState(false)
-  const [form, setForm] = useState<ExerciseFormState>(defaultForm)
 
   useEffect(() => {
     loadExercises()
@@ -69,84 +31,6 @@ export default function ExercisesPage() {
       showErrorToast("Erro ao carregar exercícios", error.response?.data?.message || "Tente novamente mais tarde.")
     } finally {
       setIsLoading(false)
-    }
-  }
-
-  const openCreateDialog = () => {
-    setForm(defaultForm)
-    setIsDialogOpen(true)
-  }
-
-  const openEditDialog = (exercise: Exercise) => {
-    setForm({
-      id: exercise.id,
-      title: exercise.title,
-      description: exercise.description || "",
-      category: exercise.category || "",
-      type: exercise.type,
-      durationMinutes: exercise.duration_seconds ? String(Math.round(exercise.duration_seconds / 60)) : "",
-      targetReps: exercise.target_reps ? String(exercise.target_reps) : "",
-      is_active: exercise.is_active,
-    })
-    setIsDialogOpen(true)
-  }
-
-  const handleSave = async () => {
-    if (!form.title.trim()) {
-      showErrorToast("Campos obrigatórios", "O título do exercício é obrigatório.")
-      return
-    }
-
-    if (form.type === "timer" && !form.durationMinutes.trim()) {
-      showErrorToast("Campos obrigatórios", "Informe a duração em minutos para exercícios com tempo.")
-      return
-    }
-
-    if (form.type === "counter" && !form.targetReps.trim()) {
-      showErrorToast("Campos obrigatórios", "Informe o número de repetições para exercícios com contagem.")
-      return
-    }
-
-    setIsSaving(true)
-    try {
-      const payload: Partial<Exercise> = {
-        title: form.title.trim(),
-        description: form.description.trim() || null,
-        category: form.category.trim() || null,
-        type: form.type,
-        duration_seconds:
-          form.type === "timer" && form.durationMinutes
-            ? Number(form.durationMinutes) * 60
-            : null,
-        target_reps:
-          form.type === "counter" && form.targetReps
-            ? Number(form.targetReps)
-            : null,
-        is_active: form.is_active,
-      }
-
-      let saved: Exercise
-      if (form.id) {
-        saved = await exerciseService.update(form.id, payload)
-        showSuccessToast("Exercício atualizado", "As informações do exercício foram salvas.")
-      } else {
-        saved = await exerciseService.create(payload)
-        showSuccessToast("Exercício criado", "Novo exercício cadastrado com sucesso.")
-      }
-
-      setIsDialogOpen(false)
-      setForm(defaultForm)
-
-      // Atualizar lista local
-      setExercises((prev) => {
-        const others = prev.filter((e) => e.id !== saved.id)
-        return [...others, saved].sort((a, b) => a.title.localeCompare(b.title))
-      })
-    } catch (error: any) {
-      console.error("Erro ao salvar exercício:", error)
-      showErrorToast("Erro ao salvar exercício", error.response?.data?.message || "Tente novamente mais tarde.")
-    } finally {
-      setIsSaving(false)
     }
   }
 
@@ -173,52 +57,6 @@ export default function ExercisesPage() {
     return Activity
   }
 
-  const handleGenerateWithAI = async () => {
-    if (!aiGoal.trim()) {
-      showErrorToast("Campos obrigatórios", "Descreva o foco do exercício para a IA (ex.: ansiedade, sono, respiração).")
-      return
-    }
-
-    setIsGeneratingAI(true)
-    try {
-      const generated = await exerciseService.generateWithAI({
-        focus: aiGoal.trim(),
-      })
-
-      if (!generated) {
-        showErrorToast("Erro", "Não foi possível gerar um exercício com IA agora.")
-        return
-      }
-
-      // Preenche o formulário, mas NÃO salva
-      setForm({
-        id: undefined,
-        title: generated.title,
-        description: generated.description || "",
-        category: generated.category || "",
-        type: generated.type,
-        durationMinutes:
-          generated.type === "timer" && generated.duration_seconds
-            ? String(Math.max(1, Math.round(generated.duration_seconds / 60)))
-            : "",
-        targetReps:
-          generated.type === "counter" && generated.target_reps
-            ? String(generated.target_reps)
-            : "",
-        is_active: true,
-      })
-
-      setIsAIDialogOpen(false)
-      setAIGoal("")
-      setIsDialogOpen(true)
-      showSuccessToast("Exercício sugerido", "Revise os campos e clique em salvar se estiver satisfeito.")
-    } catch (error: any) {
-      console.error("Erro ao gerar exercício com IA:", error)
-      showErrorToast("Erro", error.response?.data?.message || "Não foi possível gerar o exercício com IA.")
-    } finally {
-      setIsGeneratingAI(false)
-    }
-  }
 
   return (
     <DashboardLayout>
@@ -232,18 +70,12 @@ export default function ExercisesPage() {
             </p>
           </div>
           <div className="flex gap-2">
-            <Button
-              variant="outline"
-              onClick={() => setIsAIDialogOpen(true)}
-              className="gap-2"
-            >
-              <Sparkles className="h-4 w-4 text-primary" />
-              Gerar com IA
-            </Button>
-            <Button onClick={openCreateDialog} className="gap-2">
-              <Plus className="h-4 w-4" />
-              Novo Exercício
-            </Button>
+            <Link href="/dashboard/exercises/create">
+              <Button className="gap-2">
+                <Plus className="h-4 w-4" />
+                Novo Exercício
+              </Button>
+            </Link>
           </div>
         </div>
 
@@ -299,25 +131,29 @@ export default function ExercisesPage() {
                                 )}
                               </div>
                             </div>
-                            <Button
-                              variant="outline"
-                              size="icon"
-                              onClick={() => openEditDialog(exercise)}
-                              className="h-8 w-8"
-                            >
-                              <Edit2 className="h-4 w-4" />
-                            </Button>
+                            <Link href={`/dashboard/exercises/${exercise.id}/edit`}>
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                className="h-8 w-8"
+                              >
+                                <Edit2 className="h-4 w-4" />
+                              </Button>
+                            </Link>
                           </div>
 
                           <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                             <Badge variant="secondary">
-                              {exercise.type === "timer" ? "Com tempo" : "Contagem"}
+                              {exercise.type === "timer" ? "Com tempo" : exercise.type === "counter" ? "Contagem" : "Guiado"}
                             </Badge>
                             {exercise.type === "timer" && exercise.duration_seconds && (
                               <span>{Math.round(exercise.duration_seconds / 60)} min recomendados</span>
                             )}
                             {exercise.type === "counter" && exercise.target_reps && (
                               <span>{exercise.target_reps} repetições recomendadas</span>
+                            )}
+                            {exercise.type === "guided" && exercise.steps && exercise.steps.length > 0 && (
+                              <span>{exercise.steps.length} passos ({Math.round(exercise.steps.reduce((acc, s) => acc + s.duration_seconds, 0) / 60 * 10) / 10} min)</span>
                             )}
                           </div>
 
@@ -343,270 +179,7 @@ export default function ExercisesPage() {
             )}
           </CardContent>
         </Card>
-
-        {/* Dialog de criação/edição */}
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>{form.id ? "Editar Exercício" : "Novo Exercício"}</DialogTitle>
-              <DialogDescription>
-                Defina os detalhes do exercício terapêutico que ficará disponível para seus pacientes.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="title">Título *</Label>
-                <Input
-                  id="title"
-                  value={form.title}
-                  onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
-                  placeholder="Ex.: Respiração 4-7-8"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="description">Descrição</Label>
-                <Textarea
-                  id="description"
-                  value={form.description}
-                  onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-                  placeholder="Explique brevemente como o exercício funciona e quando utilizá-lo."
-                  rows={3}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="category">Categoria</Label>
-                <Input
-                  id="category"
-                  value={form.category}
-                  onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
-                  placeholder="Ex.: respiração, mindfulness, relaxamento..."
-                />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Tipo *</Label>
-                  <Select
-                    value={form.type}
-                    onValueChange={(value: ExerciseType) => setForm((f) => ({ ...f, type: value }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione o tipo" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="timer">Com tempo (minutos)</SelectItem>
-                      <SelectItem value="counter">Com contagem (repetições)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {form.type === "timer" ? (
-                  <div className="space-y-2">
-                    <Label htmlFor="durationMinutes">Duração recomendada (minutos) *</Label>
-                    <Input
-                      id="durationMinutes"
-                      type="number"
-                      min={1}
-                      max={120}
-                      value={form.durationMinutes}
-                      onChange={(e) => setForm((f) => ({ ...f, durationMinutes: e.target.value }))}
-                      placeholder="Ex.: 5"
-                    />
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    <Label htmlFor="targetReps">Repetições recomendadas *</Label>
-                    <Input
-                      id="targetReps"
-                      type="number"
-                      min={1}
-                      max={1000}
-                      value={form.targetReps}
-                      onChange={(e) => setForm((f) => ({ ...f, targetReps: e.target.value }))}
-                      placeholder="Ex.: 10"
-                    />
-                  </div>
-                )}
-              </div>
-
-              <div className="flex items-center gap-2 pt-2">
-                <Switch
-                  id="is_active"
-                  checked={form.is_active}
-                  onCheckedChange={(checked) => setForm((f) => ({ ...f, is_active: checked }))}
-                />
-                <Label htmlFor="is_active" className="text-sm text-muted-foreground">
-                  Disponível no portal do paciente
-                </Label>
-              </div>
-
-              <div className="flex justify-end gap-2 pt-4">
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setIsDialogOpen(false)
-                    setForm(defaultForm)
-                  }}
-                  disabled={isSaving}
-                >
-                  Cancelar
-                </Button>
-                <Button onClick={handleSave} disabled={isSaving} className="gap-2">
-                  {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-                  {form.id ? "Salvar alterações" : "Criar exercício"}
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
-
-        {/* Dialog Gerar com IA */}
-        <Dialog open={isAIDialogOpen} onOpenChange={setIsAIDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Gerar exercício com IA</DialogTitle>
-              <DialogDescription>
-                Descreva o objetivo terapêutico ou situação do paciente. A IA vai sugerir um exercício, sem salvar
-                automaticamente.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="ai-goal">Objetivo / foco do exercício *</Label>
-                <Textarea
-                  id="ai-goal"
-                  value={aiGoal}
-                  onChange={(e) => setAIGoal(e.target.value)}
-                  placeholder="Ex.: ajudar paciente a reduzir ansiedade antes de dormir, focando em respiração e relaxamento..."
-                  rows={4}
-                />
-              </div>
-              <p className="text-xs text-muted-foreground">
-                A sugestão será usada apenas para preencher o formulário. Você poderá revisar e editar tudo antes de salvar.
-              </p>
-              <div className="flex justify-end gap-2 pt-2">
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setIsAIDialogOpen(false)
-                    setAIGoal("")
-                  }}
-                  disabled={isGeneratingAI}
-                >
-                  Cancelar
-                </Button>
-                <Button
-                  disabled={!aiGoal.trim() || isGeneratingAI}
-                  className="gap-2"
-                  onClick={async () => {
-                    if (!aiGoal.trim()) return
-                    try {
-                      setIsGeneratingAI(true)
-                      const suggestion = await exerciseService.generateWithAI(aiGoal.trim())
-
-                      setForm((prev) => ({
-                        ...prev,
-                        id: undefined, // sempre criar novo
-                        title: suggestion.title || prev.title,
-                        description: suggestion.description || prev.description,
-                        category: suggestion.category || prev.category,
-                        type: suggestion.type,
-                        durationMinutes:
-                          suggestion.type === "timer" && suggestion.duration_seconds
-                            ? String(Math.round(suggestion.duration_seconds / 60))
-                            : "",
-                        targetReps:
-                          suggestion.type === "counter" && suggestion.target_reps
-                            ? String(suggestion.target_reps)
-                            : "",
-                      }))
-
-                      setIsAIDialogOpen(false)
-                      setAIGoal("")
-                      setIsDialogOpen(true)
-                      showSuccessToast("Sugestão gerada", "Revise o exercício sugerido antes de salvar.")
-                    } catch (error: any) {
-                      console.error("Erro ao gerar exercício com IA:", error)
-                      showErrorToast(
-                        "Erro ao gerar com IA",
-                        error.response?.data?.message || "Não foi possível gerar sugestão no momento.",
-                      )
-                    } finally {
-                      setIsGeneratingAI(false)
-                    }
-                  }}
-                >
-                  {isGeneratingAI ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Gerando...
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="h-4 w-4" />
-                      Gerar sugestão
-                    </>
-                  )}
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
-
-        {/* Dialog de geração com IA */}
-        <Dialog open={isAIDialogOpen} onOpenChange={setIsAIDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Gerar exercício com IA</DialogTitle>
-              <DialogDescription>
-                Descreva o foco do exercício (ex.: “respiração para crise de ansiedade”, “relaxamento antes de dormir”).
-                A IA irá sugerir um exercício e você poderá editar antes de salvar.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="ai-goal">Foco / objetivo do exercício *</Label>
-                <Textarea
-                  id="ai-goal"
-                  value={aiGoal}
-                  onChange={(e) => setAIGoal(e.target.value)}
-                  placeholder="Ex.: Exercício de respiração curta para momentos de ansiedade intensa."
-                  rows={3}
-                />
-              </div>
-              <div className="flex justify-end gap-2 pt-2">
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setIsAIDialogOpen(false)
-                    setAIGoal("")
-                  }}
-                  disabled={isGeneratingAI}
-                >
-                  Cancelar
-                </Button>
-                <Button onClick={handleGenerateWithAI} disabled={isGeneratingAI} className="gap-2">
-                  {isGeneratingAI ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Gerando...
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="h-4 w-4" />
-                      Gerar com IA
-                    </>
-                  )}
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
       </div>
     </DashboardLayout>
   )
 }
-
-

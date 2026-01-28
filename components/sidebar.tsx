@@ -31,7 +31,7 @@ const navigation = [
   { name: "Agenda", href: "/dashboard/schedule", icon: Calendar },
     { name: "Pacientes", href: "/dashboard/patients", icon: Users },
   { name: "Contratos", href: "/dashboard/contracts", icon: FileText },
-  { name: "Prontuários", href: "/medical-records", icon: ClipboardList },
+  // { name: "Prontuários", href: "/medical-records", icon: ClipboardList }, // Temporariamente comentado
   { name: "Diários", href: "/dashboard/diary", icon: BookOpen },
   { name: "Quizzes", href: "/dashboard/quizzes", icon: Brain },
   // { name: "Recursos", href: "/dashboard/resources", icon: Library }, // Temporariamente oculto

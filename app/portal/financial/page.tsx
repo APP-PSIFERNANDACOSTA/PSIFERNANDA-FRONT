@@ -254,7 +254,7 @@ export default function FinanceiroPage() {
                           )}
                           Ver
                         </Button>
-                        <Button
+                    {/*     <Button
                           variant="outline"
                           size="sm"
                           onClick={() => handleDownloadReceipt(payment.id)}
@@ -267,7 +267,7 @@ export default function FinanceiroPage() {
                             <Download className="h-3 w-3" />
                           )}
                           Baixar
-                        </Button>
+                        </Button> */}
                       </div>
                     )}
                   </div>

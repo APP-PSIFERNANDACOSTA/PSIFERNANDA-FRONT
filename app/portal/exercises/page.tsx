@@ -25,6 +25,9 @@ export default function ExerciciosPage() {
   const [elapsedSeconds, setElapsedSeconds] = useState(0)
   const [currentSessionId, setCurrentSessionId] = useState<number | null>(null)
   const [reps, setReps] = useState(0)
+  // Estados para exercícios guiados
+  const [currentStepIndex, setCurrentStepIndex] = useState(0)
+  const [stepTimeRemaining, setStepTimeRemaining] = useState(0)
 
   useEffect(() => {
     const loadExercises = async () => {
@@ -51,6 +54,42 @@ export default function ExerciciosPage() {
     }, 1000)
     return () => clearInterval(interval)
   }, [isPlaying])
+
+  // Atualizar tempo restante quando mudar de step em exercícios guiados
+  useEffect(() => {
+    if (activeExercise?.type === "guided" && activeExercise.steps && activeExercise.steps[currentStepIndex]) {
+      setStepTimeRemaining(activeExercise.steps[currentStepIndex].duration_seconds)
+    }
+  }, [currentStepIndex, activeExercise])
+
+  // Timer para exercícios guiados
+  useEffect(() => {
+    if (!isPlaying || activeExercise?.type !== "guided" || !activeExercise.steps) return
+
+    const currentStep = activeExercise.steps[currentStepIndex]
+    if (!currentStep) return
+
+    const interval = setInterval(() => {
+      setStepTimeRemaining((prev) => {
+        if (prev <= 1) {
+          // Passar para o próximo step
+          if (currentStepIndex < activeExercise.steps!.length - 1) {
+            const nextIndex = currentStepIndex + 1
+            setCurrentStepIndex(nextIndex)
+            return activeExercise.steps![nextIndex]?.duration_seconds || 0
+          } else {
+            // Exercício completo
+            setIsPlaying(false)
+            return 0
+          }
+        }
+        return prev - 1
+      })
+      setElapsedSeconds((prev) => prev + 1)
+    }, 1000)
+
+    return () => clearInterval(interval)
+  }, [isPlaying, activeExercise, currentStepIndex])
 
   const handleStartExercise = async (exercise: Exercise) => {
     try {
@@ -86,6 +125,8 @@ export default function ExerciciosPage() {
       setElapsedSeconds(0)
       setReps(0)
       setCurrentSessionId(null)
+      setCurrentStepIndex(0)
+      setStepTimeRemaining(0)
     }
   }
 
@@ -133,6 +174,8 @@ export default function ExerciciosPage() {
               setElapsedSeconds(0)
               setReps(0)
               setCurrentSessionId(null)
+              setCurrentStepIndex(0)
+              setStepTimeRemaining(0)
             }}
           >
             Voltar
@@ -145,7 +188,20 @@ export default function ExerciciosPage() {
               <div className="flex h-64 w-64 items-center justify-center rounded-full bg-gradient-to-br from-primary/20 to-primary/5">
                 <div className="text-center">
                   <Icon className="mx-auto h-16 w-16 text-primary" />
-                  {activeExercise.type === "timer" ? (
+                  {activeExercise.type === "guided" && activeExercise.steps ? (
+                    <>
+                      <p className="mt-4 text-sm text-muted-foreground">
+                        Passo {currentStepIndex + 1} de {activeExercise.steps.length}
+                      </p>
+                      <p className="mt-1 text-4xl font-bold text-primary">{stepTimeRemaining}</p>
+                      <p className="mt-2 text-xs text-muted-foreground">segundos restantes</p>
+                      {activeExercise.steps[currentStepIndex] && (
+                        <p className="mt-3 text-sm font-medium text-foreground max-w-[200px] mx-auto">
+                          {activeExercise.steps[currentStepIndex].description}
+                        </p>
+                      )}
+                    </>
+                  ) : activeExercise.type === "timer" ? (
                     <>
                       <p className="mt-4 text-sm text-muted-foreground">Tempo decorrido</p>
                       <p className="mt-1 text-4xl font-bold text-primary">
@@ -173,7 +229,41 @@ export default function ExerciciosPage() {
               </div>
             </div>
 
-            {activeExercise.type === "timer" && activeExercise.duration_seconds && (
+            {activeExercise.type === "guided" && activeExercise.steps ? (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Progresso do exercício</span>
+                    <span className="font-medium">
+                      {Math.round(((currentStepIndex + (stepTimeRemaining === 0 ? 1 : 0)) / activeExercise.steps.length) * 100)}%
+                    </span>
+                  </div>
+                  <Progress
+                    value={((currentStepIndex + (stepTimeRemaining === 0 ? 1 : 0)) / activeExercise.steps.length) * 100}
+                    className="h-2"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-foreground">Próximos passos:</p>
+                  <div className="space-y-1">
+                    {activeExercise.steps.map((step, idx) => (
+                      <div
+                        key={idx}
+                        className={`text-xs p-2 rounded ${
+                          idx === currentStepIndex
+                            ? "bg-primary/20 border border-primary/40 font-medium"
+                            : idx < currentStepIndex
+                              ? "bg-muted/50 text-muted-foreground line-through"
+                              : "bg-muted/20"
+                        }`}
+                      >
+                        {idx + 1}. {step.description} ({step.duration_seconds}s)
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ) : activeExercise.type === "timer" && activeExercise.duration_seconds ? (
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Progresso em relação ao tempo recomendado</span>
@@ -181,7 +271,7 @@ export default function ExerciciosPage() {
                 </div>
                 <Progress value={progress} className="h-2" />
               </div>
-            )}
+            ) : null}
 
             <div className="flex flex-wrap gap-3">
               <Button
@@ -221,6 +311,12 @@ export default function ExerciciosPage() {
                 onClick={() => {
                   setElapsedSeconds(0)
                   setReps(0)
+                  setCurrentStepIndex(0)
+                  setStepTimeRemaining(
+                    activeExercise.type === "guided" && activeExercise.steps?.[0]
+                      ? activeExercise.steps[0].duration_seconds
+                      : 0
+                  )
                 }}
               >
                 <RotateCcw className="mr-2 h-5 w-5" />
@@ -328,7 +424,7 @@ export default function ExerciciosPage() {
                         </div>
                       </div>
                       <Badge variant="secondary">
-                        {exercise.type === "timer" ? "Com tempo" : "Contagem"}
+                        {exercise.type === "timer" ? "Com tempo" : exercise.type === "counter" ? "Contagem" : "Guiado"}
                       </Badge>
                     </div>
                   </CardHeader>
@@ -344,6 +440,12 @@ export default function ExerciciosPage() {
                         <span className="flex items-center gap-1">
                           <Target className="h-4 w-4" />
                           {exercise.target_reps} repetições recomendadas
+                        </span>
+                      )}
+                      {exercise.type === "guided" && exercise.steps && exercise.steps.length > 0 && (
+                        <span className="flex items-center gap-1">
+                          <Target className="h-4 w-4" />
+                          {exercise.steps.length} passos guiados
                         </span>
                       )}
                     </div>

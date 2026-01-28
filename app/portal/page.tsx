@@ -131,25 +131,27 @@ export default function PatientPortalPage() {
   return (
     <div className="space-y-12 sm:space-y-6">
       {/* Welcome Section */}
-      <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-background">
+      <Card className="group border-primary/20 bg-gradient-to-br from-primary/5 to-background transition-colors hover:from-primary/10 hover:to-background">
         <CardHeader>
           <div className="flex items-start justify-between">
             <div className="space-y-1">
               <CardTitle className="text-2xl">Olá, {user?.name?.split(" ")[0]}!</CardTitle>
               <CardDescription>Bem-vindo(a) de volta ao seu espaço terapêutico</CardDescription>
             </div>
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
-              <Heart className="h-8 w-8 text-primary" />
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 transition-colors group-hover:bg-primary">
+              <Heart className="h-8 w-8 text-primary transition-colors group-hover:text-white" />
             </div>
           </div>
         </CardHeader>
       </Card>
 
       {/* Message from Psychologist */}
-      <Card className="border-primary/20">
+      <Card className="group border-primary/20 transition-colors hover:bg-primary/5">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Heart className="h-5 w-5 text-primary" />
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 transition-colors group-hover:bg-primary">
+              <Heart className="h-5 w-5 text-primary transition-colors group-hover:text-white" />
+            </span>
             Mensagem da Psi
           </CardTitle>
         </CardHeader>
@@ -188,10 +190,12 @@ export default function PatientPortalPage() {
       </Card>
 
       {/* Next Session */}
-      <Card>
+      <Card className="group transition-colors hover:bg-primary/5">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Calendar className="h-5 w-5 text-primary" />
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 transition-colors group-hover:bg-primary">
+              <Calendar className="h-5 w-5 text-primary transition-colors group-hover:text-white" />
+            </span>
             Próxima Sessão
           </CardTitle>
         </CardHeader>
@@ -248,7 +252,9 @@ export default function PatientPortalPage() {
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center py-8 text-center">
-              <Calendar className="h-12 w-12 text-muted-foreground mb-3 opacity-50" />
+              <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10 mb-3 transition-colors group-hover:bg-primary">
+                <Calendar className="h-12 w-12 text-primary opacity-70 transition-colors group-hover:opacity-100 group-hover:text-white" />
+              </div>
               <p className="font-medium text-foreground mb-1">Nenhuma sessão agendada</p>
               <p className="text-sm text-muted-foreground mb-4">
                 Você não possui sessões agendadas no momento.
@@ -264,19 +270,21 @@ export default function PatientPortalPage() {
       </Card>
 
       {/* Estatísticas */}
-      <Card>
+      <Card className="group transition-colors hover:bg-primary/5">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <TrendingUp className="h-5 w-5 text-primary" />
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 transition-colors group-hover:bg-primary">
+              <TrendingUp className="h-5 w-5 text-primary transition-colors group-hover:text-white" />
+            </span>
             Suas Atividades
           </CardTitle>
           <CardDescription>Resumo do seu engajamento</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid gap-6 sm:gap-4 sm:grid-cols-3">
-            <div className="flex items-center gap-3 rounded-lg border border-border p-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
-                <Heart className="h-6 w-6 text-primary" />
+            <div className="group/stat flex items-center gap-3 rounded-lg border border-border p-4 transition-colors hover:bg-primary/5">
+              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 transition-colors group-hover/stat:bg-primary">
+                <Heart className="h-6 w-6 text-primary transition-colors group-hover/stat:text-white" />
               </div>
               <div className="flex-1">
                 {isLoadingStats ? (
@@ -287,9 +295,9 @@ export default function PatientPortalPage() {
                 <p className="text-sm text-muted-foreground">Diários Feitos</p>
               </div>
             </div>
-            <div className="flex items-center gap-3 rounded-lg border border-border p-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
-                <BookOpen className="h-6 w-6 text-primary" />
+            <div className="group/stat flex items-center gap-3 rounded-lg border border-border p-4 transition-colors hover:bg-primary/5">
+              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 transition-colors group-hover/stat:bg-primary">
+                <BookOpen className="h-6 w-6 text-primary transition-colors group-hover/stat:text-white" />
               </div>
               <div className="flex-1">
                 {isLoadingStats ? (
@@ -300,9 +308,9 @@ export default function PatientPortalPage() {
                 <p className="text-sm text-muted-foreground">Exercícios Feitos</p>
               </div>
             </div>
-            <div className="flex items-center gap-3 rounded-lg border border-border p-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
-                <Brain className="h-6 w-6 text-primary" />
+            <div className="group/stat flex items-center gap-3 rounded-lg border border-border p-4 transition-colors hover:bg-primary/5">
+              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 transition-colors group-hover/stat:bg-primary">
+                <Brain className="h-6 w-6 text-primary transition-colors group-hover/stat:text-white" />
               </div>
               <div className="flex-1">
                 {isLoadingStats ? (
@@ -319,55 +327,55 @@ export default function PatientPortalPage() {
 
       {/* Quick Actions - Melhorado para mobile - Inclui itens que não estão no bottom nav */}
       <div className="grid gap-6 sm:gap-5 grid-cols-2 lg:grid-cols-4">
-        <Link href="/portal/exercises" className="block">
-          <Card className="cursor-pointer transition-all hover:bg-accent active:scale-[0.98] touch-manipulation h-full">
+        <Link href="/portal/exercises" className="block group">
+          <Card className="cursor-pointer transition-all hover:bg-primary active:scale-[0.98] touch-manipulation h-full">
             <CardContent className="flex flex-col items-center justify-center gap-2 p-5 sm:p-6 min-h-[100px]">
-              <div className="flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-xl bg-primary/10">
-                <BookOpen className="h-7 w-7 sm:h-8 sm:w-8 text-primary" />
+              <div className="flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-xl bg-primary/10 transition-colors group-hover:bg-white/20">
+                <BookOpen className="h-7 w-7 sm:h-8 sm:w-8 text-primary transition-colors group-hover:text-white" />
               </div>
               <div className="text-center">
-                <p className="font-semibold text-sm sm:text-base">Exercícios</p>
-                <p className="text-xs text-muted-foreground mt-0.5">Práticas terapêuticas</p>
+                <p className="font-semibold text-sm sm:text-base group-hover:text-white transition-colors">Exercícios</p>
+                <p className="text-xs text-muted-foreground mt-0.5 group-hover:text-white/80 transition-colors">Práticas terapêuticas</p>
               </div>
             </CardContent>
           </Card>
         </Link>
-        <Link href="/portal/contracts" className="block">
-          <Card className="cursor-pointer transition-all hover:bg-accent active:scale-[0.98] touch-manipulation h-full">
+        <Link href="/portal/contracts" className="block group">
+          <Card className="cursor-pointer transition-all hover:bg-primary active:scale-[0.98] touch-manipulation h-full">
             <CardContent className="flex flex-col items-center justify-center gap-2 p-5 sm:p-6 min-h-[100px]">
-              <div className="flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-xl bg-primary/10">
-                <FileText className="h-7 w-7 sm:h-8 sm:w-8 text-primary" />
+              <div className="flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-xl bg-primary/10 transition-colors group-hover:bg-white/20">
+                <FileText className="h-7 w-7 sm:h-8 sm:w-8 text-primary transition-colors group-hover:text-white" />
               </div>
               <div className="text-center">
-                <p className="font-semibold text-sm sm:text-base">Contratos</p>
-                <p className="text-xs text-muted-foreground mt-0.5">Meus contratos</p>
+                <p className="font-semibold text-sm sm:text-base group-hover:text-white transition-colors">Contratos</p>
+                <p className="text-xs text-muted-foreground mt-0.5 group-hover:text-white/80 transition-colors">Meus contratos</p>
               </div>
             </CardContent>
           </Card>
         </Link>
-        <Link href="/portal/financial" className="block">
-          <Card className="cursor-pointer transition-all hover:bg-accent active:scale-[0.98] touch-manipulation h-full">
+        <Link href="/portal/financial" className="block group">
+          <Card className="cursor-pointer transition-all hover:bg-primary active:scale-[0.98] touch-manipulation h-full">
             <CardContent className="flex flex-col items-center justify-center gap-2 p-5 sm:p-6 min-h-[100px]">
-              <div className="flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-xl bg-primary/10">
-                <DollarSign className="h-7 w-7 sm:h-8 sm:w-8 text-primary" />
+              <div className="flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-xl bg-primary/10 transition-colors group-hover:bg-white/20">
+                <DollarSign className="h-7 w-7 sm:h-8 sm:w-8 text-primary transition-colors group-hover:text-white" />
               </div>
               <div className="text-center">
-                <p className="font-semibold text-sm sm:text-base">Financeiro</p>
-                <p className="text-xs text-muted-foreground mt-0.5">Pagamentos</p>
+                <p className="font-semibold text-sm sm:text-base group-hover:text-white transition-colors">Financeiro</p>
+                <p className="text-xs text-muted-foreground mt-0.5 group-hover:text-white/80 transition-colors">Pagamentos</p>
               </div>
             </CardContent>
           </Card>
         </Link>
         <Dialog>
           <DialogTrigger asChild>
-            <Card className="cursor-pointer transition-all hover:bg-accent active:scale-[0.98] touch-manipulation h-full">
+            <Card className="group cursor-pointer transition-all hover:bg-primary active:scale-[0.98] touch-manipulation h-full">
               <CardContent className="flex flex-col items-center justify-center gap-2 p-5 sm:p-6 min-h-[100px]">
-                <div className="flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-xl bg-primary/10">
-                  <Library className="h-7 w-7 sm:h-8 sm:w-8 text-primary" />
+                <div className="flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-xl bg-primary/10 transition-colors group-hover:bg-white/20">
+                  <Library className="h-7 w-7 sm:h-8 sm:w-8 text-primary transition-colors group-hover:text-white" />
                 </div>
                 <div className="text-center">
-                  <p className="font-semibold text-sm sm:text-base">Recursos</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">Em breve</p>
+                  <p className="font-semibold text-sm sm:text-base group-hover:text-white transition-colors">Recursos</p>
+                  <p className="text-xs text-muted-foreground mt-0.5 group-hover:text-white/80 transition-colors">Em breve</p>
                 </div>
               </CardContent>
             </Card>
