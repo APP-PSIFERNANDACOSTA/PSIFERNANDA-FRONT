@@ -1,6 +1,6 @@
 // Service Worker para Push Notifications
 // IMPORTANTE: Incrementar a versão sempre que houver mudanças significativas
-const APP_VERSION = '6' // Incrementar este número para forçar atualização
+const APP_VERSION = '7' // Incrementar este número para forçar atualização (v7: notificationclick com navigate+focus)
 const CACHE_NAME = `portal-paciente-v${APP_VERSION}`
 const STATIC_CACHE_NAME = `portal-paciente-static-v${APP_VERSION}`
 
@@ -99,6 +99,7 @@ self.addEventListener('push', (event) => {
 })
 
 // Clique na notificação
+// Prioriza janela/aba já aberta do app (PWA ou navegador); senão abre nova janela
 self.addEventListener('notificationclick', (event) => {
   console.log('[Service Worker] Notificação clicada:', event)
 
@@ -106,21 +107,28 @@ self.addEventListener('notificationclick', (event) => {
 
   const data = event.notification.data || {}
   const urlToOpen = data.url || '/portal'
+  const fullUrl = new URL(urlToOpen, self.location.origin).href
 
   event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-      // Verificar se já existe uma janela aberta
-      for (let i = 0; i < clientList.length; i++) {
-        const client = clientList[i]
-        if (client.url === urlToOpen && 'focus' in client) {
+    (async () => {
+      const windowClients = await self.clients.matchAll({
+        type: 'window',
+        includeUncontrolled: true
+      })
+
+      const origin = new URL(fullUrl).origin
+
+      for (const client of windowClients) {
+        if (client.url.startsWith(origin)) {
+          await client.navigate(fullUrl)
           return client.focus()
         }
       }
-      // Abrir nova janela se não houver nenhuma aberta
-      if (clients.openWindow) {
-        return clients.openWindow(urlToOpen)
+
+      if (self.clients.openWindow) {
+        return self.clients.openWindow(fullUrl)
       }
-    })
+    })()
   )
 })
 

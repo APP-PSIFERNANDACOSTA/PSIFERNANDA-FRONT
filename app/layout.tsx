@@ -9,6 +9,7 @@ import { ColorProvider } from "@/components/color-provider"
 import { ThemeProvider } from "@/components/theme-provider"
 import { AuthThemeConnector } from "@/components/auth-theme-connector"
 // import { PWAUpdatePrompt } from "@/components/pwa-update-prompt"
+import { PWAInstallPrompt } from "@/components/pwa-install-prompt"
 
 const poppins = Poppins({
   subsets: ["latin"],
@@ -65,6 +66,7 @@ export default function RootLayout({
             <AuthProvider>
               <AuthThemeConnector />
               {/* <PWAUpdatePrompt /> */}
+              <PWAInstallPrompt />
               {children}
             </AuthProvider>
             <Toaster />
