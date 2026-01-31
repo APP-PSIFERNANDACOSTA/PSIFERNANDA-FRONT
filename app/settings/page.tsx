@@ -24,9 +24,9 @@ export default function SettingsPage() {
     },
     {
       title: "Notificações",
-      description: "Configure alertas e notificações do sistema",
+      description: "Templates de mensagens e lembretes de sessão",
       icon: Bell,
-      href: "/settings/notifications",
+      href: "/communications?tab=settings",
       color: "bg-green-500",
     },
     {

@@ -32,6 +32,7 @@ import {
   Trash2,
   GripVertical,
   Users,
+  User,
   Edit,
   Calendar,
   AlertCircle,
@@ -41,6 +42,9 @@ import {
   X,
   PlayCircle,
   RotateCcw,
+  Settings,
+  Save,
+  Info,
 } from "lucide-react"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "../../components/ui/tabs"
 import {
@@ -63,6 +67,10 @@ import messageService from "../../services/message-service"
 import patientService from "../../services/patient-service"
 import taskService from "../../services/task-service"
 import notificationService from "../../services/notification-service"
+import notificationTemplateService, {
+  NotificationTemplate,
+  SessionReminderRule,
+} from "../../services/notification-template-service"
 import type { Message } from "../../types/message"
 import type { Patient } from "../../types/patient"
 import type { Task, TaskStatus, TaskPriority, TaskCategory, TaskStats } from "../../types/task"
@@ -291,12 +299,15 @@ function TaskCardOverlay({
 export default function ComunicacoesPage() {
   const { toast } = useToast()
   const searchParams = useSearchParams()
+  const tabParam = searchParams.get("tab")
   const defaultTab =
-    searchParams.get("tab") === "tasks"
+    tabParam === "tasks"
       ? "tasks"
-      : searchParams.get("tab") === "messages"
+      : tabParam === "messages"
         ? "messages"
-        : "notifications"
+        : tabParam === "settings"
+          ? "settings"
+          : "notifications"
   const [messages, setMessages] = useState<Message[]>([])
   const [patients, setPatients] = useState<Patient[]>([])
   const [isLoadingMessages, setIsLoadingMessages] = useState(true)
@@ -360,11 +371,30 @@ export default function ComunicacoesPage() {
     patient_id: null as number | null,
   })
 
+  // Notification Templates and Rules state
+  const [notifTemplates, setNotifTemplates] = useState<NotificationTemplate[]>([])
+  const [sessionRules, setSessionRules] = useState<SessionReminderRule[]>([])
+  const [isLoadingTemplates, setIsLoadingTemplates] = useState(true)
+  const [isLoadingRules, setIsLoadingRules] = useState(true)
+  const [isSavingTemplates, setIsSavingTemplates] = useState(false)
+  const [isSavingRules, setIsSavingRules] = useState(false)
+  const [isAddRuleDialogOpen, setIsAddRuleDialogOpen] = useState(false)
+  const [newRule, setNewRule] = useState<Partial<SessionReminderRule>>({
+    channel: "push",
+    offset_minutes: 60,
+    title_template: "",
+    body_template: "",
+    enabled: true,
+    window_minutes: 60,
+  })
+
   useEffect(() => {
     loadMessages()
     loadPatients()
     loadTasks()
     loadNotifications()
+    loadNotifTemplates()
+    loadSessionRules()
   }, [taskFilter])
 
   // Recarregar notificações a cada 30 segundos
@@ -437,6 +467,128 @@ export default function ComunicacoesPage() {
       showErrorToast("Erro", "Não foi possível marcar todas como lidas.")
     }
   }
+
+  // ===== Notification Templates & Session Rules Functions =====
+  const loadNotifTemplates = async () => {
+    try {
+      setIsLoadingTemplates(true)
+      const data = await notificationTemplateService.getTemplates("push")
+      setNotifTemplates(data)
+    } catch (error: any) {
+      console.error("Erro ao carregar templates:", error)
+    } finally {
+      setIsLoadingTemplates(false)
+    }
+  }
+
+  const loadSessionRules = async () => {
+    try {
+      setIsLoadingRules(true)
+      const data = await notificationTemplateService.getRules("push")
+      setSessionRules(data)
+    } catch (error: any) {
+      console.error("Erro ao carregar regras:", error)
+    } finally {
+      setIsLoadingRules(false)
+    }
+  }
+
+  const handleSaveTemplates = async () => {
+    try {
+      setIsSavingTemplates(true)
+      const updated = await notificationTemplateService.updateTemplates(notifTemplates, "push")
+      setNotifTemplates(updated)
+      showSuccessToast("Sucesso!", "Templates de notificação salvos")
+    } catch (error: any) {
+      console.error("Erro ao salvar templates:", error)
+      showErrorToast("Erro", "Não foi possível salvar os templates")
+    } finally {
+      setIsSavingTemplates(false)
+    }
+  }
+
+  const handleSaveRules = async () => {
+    try {
+      setIsSavingRules(true)
+      const updated = await notificationTemplateService.updateRules(sessionRules, "push")
+      setSessionRules(updated)
+      showSuccessToast("Sucesso!", "Regras de lembrete salvas")
+    } catch (error: any) {
+      console.error("Erro ao salvar regras:", error)
+      showErrorToast("Erro", "Não foi possível salvar as regras")
+    } finally {
+      setIsSavingRules(false)
+    }
+  }
+
+  const handleAddRule = async () => {
+    if (!newRule.title_template?.trim()) {
+      showErrorToast("Erro", "O título do lembrete é obrigatório")
+      return
+    }
+
+    try {
+      const updatedRules = [...sessionRules, newRule as SessionReminderRule]
+      const saved = await notificationTemplateService.updateRules(updatedRules, "push")
+      setSessionRules(saved)
+      setIsAddRuleDialogOpen(false)
+      setNewRule({
+        channel: "push",
+        offset_minutes: 60,
+        title_template: "",
+        body_template: "",
+        enabled: true,
+        window_minutes: 60,
+      })
+      showSuccessToast("Sucesso!", "Regra de lembrete adicionada")
+    } catch (error: any) {
+      console.error("Erro ao adicionar regra:", error)
+      showErrorToast("Erro", "Não foi possível adicionar a regra")
+    }
+  }
+
+  const formatOffsetMinutes = (minutes: number): string => {
+    const hours = Math.floor(minutes / 60)
+    const days = Math.floor(hours / 24)
+
+    if (days > 0) {
+      return `${days} dia${days > 1 ? "s" : ""} antes`
+    } else if (hours > 0) {
+      return `${hours} hora${hours > 1 ? "s" : ""} antes`
+    } else {
+      return `${minutes} minuto${minutes > 1 ? "s" : ""} antes`
+    }
+  }
+
+  const templateTypeLabels: Record<string, string> = {
+    message_new: "Nova Mensagem",
+    quiz_assigned: "Quiz Atribuído",
+    quiz_updated: "Quiz Atualizado",
+    quiz_response: "Resposta de Quiz",
+    diary_new: "Novo Diário",
+    push_test: "Notificação de Teste",
+  }
+
+  const templateRecipient: Record<string, "patient" | "psychologist"> = {
+    message_new: "patient",
+    quiz_assigned: "patient",
+    quiz_updated: "patient",
+    quiz_response: "psychologist",
+    diary_new: "psychologist",
+    push_test: "psychologist",
+  }
+
+  const templatePlaceholders: Record<string, string[]> = {
+    message_new: ["{message_title}"],
+    quiz_assigned: ["{quiz_title}"],
+    quiz_updated: ["{quiz_title}"],
+    quiz_response: ["{patient_name}", "{quiz_title}"],
+    diary_new: ["{patient_name}"],
+    push_test: [],
+  }
+
+  const sessionPlaceholders = ["{date}", "{time}", "{datetime}"]
+  // ===== End Notification Templates & Session Rules Functions =====
 
   const formatNotificationTime = (dateString: string) => {
     try {
@@ -749,6 +901,10 @@ export default function ComunicacoesPage() {
             <TabsTrigger value="messages" className="gap-2">
               <MessageSquare className="h-4 w-4" />
               Mensagens
+            </TabsTrigger>
+            <TabsTrigger value="settings" className="gap-2">
+              <Settings className="h-4 w-4" />
+              Configurações
             </TabsTrigger>
           </TabsList>
 
@@ -1465,6 +1621,498 @@ export default function ComunicacoesPage() {
                     ))}
                   </div>
                 )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Settings Tab */}
+          <TabsContent value="settings" className="space-y-6">
+            {/* Templates de Notificação */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <Bell className="h-5 w-5 text-primary" />
+                      Templates de Notificação Push
+                    </CardTitle>
+                    <p className="mt-1.5 text-sm text-muted-foreground">
+                      Personalize as mensagens enviadas aos pacientes quando eventos ocorrem
+                    </p>
+                  </div>
+                  <Button
+                    onClick={handleSaveTemplates}
+                    disabled={isSavingTemplates || isLoadingTemplates}
+                    className="gap-2"
+                  >
+                    {isSavingTemplates ? (
+                      <>
+                        <Clock className="h-4 w-4 animate-spin" />
+                        Salvando...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="h-4 w-4" />
+                        Salvar Templates
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {isLoadingTemplates ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Clock className="h-6 w-6 animate-spin text-muted-foreground" />
+                  </div>
+                ) : notifTemplates.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    Nenhum template disponível
+                  </div>
+                ) : (
+                  <div className="space-y-8">
+                    {/* Para o Paciente */}
+                    <div>
+                      <div className="flex items-center gap-2 mb-4">
+                        <Users className="h-5 w-5 text-primary" />
+                        <h3 className="font-semibold text-foreground">Para o Paciente</h3>
+                        <Badge variant="secondary" className="text-xs">
+                          Recebidas no app do paciente
+                        </Badge>
+                      </div>
+                      <div className="space-y-4">
+                        {notifTemplates
+                          .filter((t) => (templateRecipient[t.type] ?? "psychologist") === "patient")
+                          .map((template) => (
+                            <div key={template.id} className="space-y-3 rounded-lg border p-4">
+                              <div className="flex items-start justify-between">
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2">
+                                    <h3 className="font-semibold text-foreground">
+                                      {templateTypeLabels[template.type] || template.type}
+                                    </h3>
+                                    <Badge variant="outline" className="text-xs">
+                                      {template.type}
+                                    </Badge>
+                                  </div>
+                            {templatePlaceholders[template.type]?.length > 0 && (
+                                  <p className="mt-1 text-xs text-muted-foreground">
+                                    Placeholders disponíveis:{" "}
+                                    {templatePlaceholders[template.type].join(", ")}
+                                  </p>
+                                )}
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <Label
+                                    htmlFor={`template-${template.id}-enabled`}
+                                    className="text-sm text-muted-foreground"
+                                  >
+                                    {template.enabled ? "Ativa" : "Inativa"}
+                                  </Label>
+                                  <Switch
+                                    id={`template-${template.id}-enabled`}
+                                    checked={template.enabled}
+                                    onCheckedChange={(checked) => {
+                                      setNotifTemplates((prev) =>
+                                        prev.map((t) =>
+                                          t.id === template.id ? { ...t, enabled: checked } : t
+                                        )
+                                      )
+                                    }}
+                                  />
+                                </div>
+                              </div>
+
+                              <div className="space-y-2">
+                                <div>
+                                  <Label htmlFor={`template-${template.id}-title`}>Título</Label>
+                                  <Input
+                                    id={`template-${template.id}-title`}
+                                    value={template.title_template}
+                                    onChange={(e) => {
+                                      setNotifTemplates((prev) =>
+                                        prev.map((t) =>
+                                          t.id === template.id
+                                            ? { ...t, title_template: e.target.value }
+                                            : t
+                                        )
+                                      )
+                                    }}
+                                    placeholder="Título da notificação"
+                                    className="mt-1"
+                                  />
+                                </div>
+
+                                <div>
+                                  <Label htmlFor={`template-${template.id}-body`}>Corpo (opcional)</Label>
+                                  <Textarea
+                                    id={`template-${template.id}-body`}
+                                    value={template.body_template}
+                                    onChange={(e) => {
+                                      setNotifTemplates((prev) =>
+                                        prev.map((t) =>
+                                          t.id === template.id
+                                            ? { ...t, body_template: e.target.value }
+                                            : t
+                                        )
+                                      )
+                                    }}
+                                    placeholder="Corpo da notificação (opcional)"
+                                    rows={2}
+                                    className="mt-1"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                      </div>
+                    </div>
+
+                    {/* Para a Psicóloga */}
+                    <div>
+                      <div className="flex items-center gap-2 mb-4">
+                        <User className="h-5 w-5 text-primary" />
+                        <h3 className="font-semibold text-foreground">Para a Psicóloga</h3>
+                        <Badge variant="secondary" className="text-xs">
+                          Recebidas no seu painel
+                        </Badge>
+                      </div>
+                      <div className="space-y-4">
+                        {notifTemplates
+                          .filter((t) => (templateRecipient[t.type] ?? "psychologist") === "psychologist")
+                          .map((template) => (
+                            <div key={template.id} className="space-y-3 rounded-lg border p-4">
+                              <div className="flex items-start justify-between">
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2">
+                                    <h3 className="font-semibold text-foreground">
+                                      {templateTypeLabels[template.type] || template.type}
+                                    </h3>
+                                    <Badge variant="outline" className="text-xs">
+                                      {template.type}
+                                    </Badge>
+                                  </div>
+                                  {templatePlaceholders[template.type]?.length > 0 && (
+                                    <p className="mt-1 text-xs text-muted-foreground">
+                                      Placeholders disponíveis:{" "}
+                                      {templatePlaceholders[template.type].join(", ")}
+                                    </p>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <Label
+                                    htmlFor={`template-${template.id}-enabled`}
+                                    className="text-sm text-muted-foreground"
+                                  >
+                                    {template.enabled ? "Ativa" : "Inativa"}
+                                  </Label>
+                                  <Switch
+                                    id={`template-${template.id}-enabled`}
+                                    checked={template.enabled}
+                                    onCheckedChange={(checked) => {
+                                      setNotifTemplates((prev) =>
+                                        prev.map((t) =>
+                                          t.id === template.id ? { ...t, enabled: checked } : t
+                                        )
+                                      )
+                                    }}
+                                  />
+                                </div>
+                              </div>
+
+                              <div className="space-y-2">
+                                <div>
+                                  <Label htmlFor={`template-${template.id}-title`}>Título</Label>
+                                  <Input
+                                    id={`template-${template.id}-title`}
+                                    value={template.title_template}
+                                    onChange={(e) => {
+                                      setNotifTemplates((prev) =>
+                                        prev.map((t) =>
+                                          t.id === template.id
+                                            ? { ...t, title_template: e.target.value }
+                                            : t
+                                        )
+                                      )
+                                    }}
+                                    placeholder="Título da notificação"
+                                    className="mt-1"
+                                  />
+                                </div>
+
+                                <div>
+                                  <Label htmlFor={`template-${template.id}-body`}>Corpo (opcional)</Label>
+                                  <Textarea
+                                    id={`template-${template.id}-body`}
+                                    value={template.body_template}
+                                    onChange={(e) => {
+                                      setNotifTemplates((prev) =>
+                                        prev.map((t) =>
+                                          t.id === template.id
+                                            ? { ...t, body_template: e.target.value }
+                                            : t
+                                        )
+                                      )
+                                    }}
+                                    placeholder="Corpo da notificação (opcional)"
+                                    rows={2}
+                                    className="mt-1"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Regras de Lembrete de Sessão */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <Clock className="h-5 w-5 text-primary" />
+                      Lembretes de Sessão
+                      <Badge variant="secondary" className="text-xs font-normal">
+                        Para o Paciente
+                      </Badge>
+                    </CardTitle>
+                    <p className="mt-1.5 text-sm text-muted-foreground">
+                      Configure quando os pacientes devem receber lembretes de suas sessões
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Dialog open={isAddRuleDialogOpen} onOpenChange={setIsAddRuleDialogOpen}>
+                      <DialogTrigger asChild>
+                        <Button variant="outline" className="gap-2">
+                          <Plus className="h-4 w-4" />
+                          Adicionar Regra
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="max-w-lg">
+                        <DialogHeader>
+                          <DialogTitle>Nova Regra de Lembrete</DialogTitle>
+                          <DialogDescription>
+                            Crie uma nova regra para enviar lembretes aos pacientes
+                          </DialogDescription>
+                        </DialogHeader>
+
+                        <div className="space-y-4 pt-4">
+                          <div>
+                            <Label htmlFor="new-rule-offset">Enviar quanto tempo antes?</Label>
+                            <Select
+                              value={newRule.offset_minutes?.toString()}
+                              onValueChange={(value) =>
+                                setNewRule((prev) => ({ ...prev, offset_minutes: parseInt(value) }))
+                              }
+                            >
+                              <SelectTrigger id="new-rule-offset" className="mt-1">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="30">30 minutos antes</SelectItem>
+                                <SelectItem value="60">1 hora antes</SelectItem>
+                                <SelectItem value="120">2 horas antes</SelectItem>
+                                <SelectItem value="180">3 horas antes</SelectItem>
+                                <SelectItem value="360">6 horas antes</SelectItem>
+                                <SelectItem value="720">12 horas antes</SelectItem>
+                                <SelectItem value="1440">1 dia antes (24h)</SelectItem>
+                                <SelectItem value="2880">2 dias antes</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          <div>
+                            <Label htmlFor="new-rule-title">
+                              Título <span className="text-red-500">*</span>
+                            </Label>
+                            <Input
+                              id="new-rule-title"
+                              value={newRule.title_template}
+                              onChange={(e) =>
+                                setNewRule((prev) => ({ ...prev, title_template: e.target.value }))
+                              }
+                              placeholder="Ex: Lembrete: sessão amanhã ✨"
+                              className="mt-1"
+                            />
+                          </div>
+
+                          <div>
+                            <Label htmlFor="new-rule-body">Corpo (opcional)</Label>
+                            <Textarea
+                              id="new-rule-body"
+                              value={newRule.body_template}
+                              onChange={(e) =>
+                                setNewRule((prev) => ({ ...prev, body_template: e.target.value }))
+                              }
+                              placeholder="Ex: {datetime}"
+                              rows={2}
+                              className="mt-1"
+                            />
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              Placeholders: {sessionPlaceholders.join(", ")}
+                            </p>
+                          </div>
+
+                          <div className="flex items-center justify-between rounded-lg border p-3">
+                            <Label htmlFor="new-rule-enabled" className="cursor-pointer">
+                              Ativar regra imediatamente
+                            </Label>
+                            <Switch
+                              id="new-rule-enabled"
+                              checked={newRule.enabled}
+                              onCheckedChange={(checked) =>
+                                setNewRule((prev) => ({ ...prev, enabled: checked }))
+                              }
+                            />
+                          </div>
+
+                          <div className="flex gap-2 pt-2">
+                            <Button
+                              variant="outline"
+                              onClick={() => setIsAddRuleDialogOpen(false)}
+                              className="flex-1"
+                            >
+                              Cancelar
+                            </Button>
+                            <Button onClick={handleAddRule} className="flex-1">
+                              Adicionar Regra
+                            </Button>
+                          </div>
+                        </div>
+                      </DialogContent>
+                    </Dialog>
+
+                    <Button
+                      onClick={handleSaveRules}
+                      disabled={isSavingRules || isLoadingRules}
+                      className="gap-2"
+                    >
+                      {isSavingRules ? (
+                        <>
+                          <Clock className="h-4 w-4 animate-spin" />
+                          Salvando...
+                        </>
+                      ) : (
+                        <>
+                          <Save className="h-4 w-4" />
+                          Salvar Regras
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {isLoadingRules ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Clock className="h-6 w-6 animate-spin text-muted-foreground" />
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {sessionRules
+                      .sort((a, b) => b.offset_minutes - a.offset_minutes)
+                      .map((rule) => (
+                        <div key={rule.id} className="space-y-3 rounded-lg border p-4">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <Badge variant="secondary">
+                                  {formatOffsetMinutes(rule.offset_minutes)}
+                                </Badge>
+                                <Badge variant={rule.enabled ? "default" : "outline"}>
+                                  {rule.enabled ? "Ativa" : "Inativa"}
+                                </Badge>
+                              </div>
+                              <p className="mt-1 text-xs text-muted-foreground">
+                                Janela de busca: {rule.window_minutes || 60} minutos
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Switch
+                                checked={rule.enabled}
+                                onCheckedChange={(checked) => {
+                                  setSessionRules((prev) =>
+                                    prev.map((r) => (r.id === rule.id ? { ...r, enabled: checked } : r))
+                                  )
+                                }}
+                              />
+                            </div>
+                          </div>
+
+                          <div className="space-y-2">
+                            <div>
+                              <Label>Título</Label>
+                              <Input
+                                value={rule.title_template}
+                                onChange={(e) => {
+                                  setSessionRules((prev) =>
+                                    prev.map((r) =>
+                                      r.id === rule.id ? { ...r, title_template: e.target.value } : r
+                                    )
+                                  )
+                                }}
+                                className="mt-1"
+                              />
+                            </div>
+
+                            <div>
+                              <Label>Corpo (opcional)</Label>
+                              <Textarea
+                                value={rule.body_template}
+                                onChange={(e) => {
+                                  setSessionRules((prev) =>
+                                    prev.map((r) =>
+                                      r.id === rule.id ? { ...r, body_template: e.target.value } : r
+                                    )
+                                  )
+                                }}
+                                rows={2}
+                                className="mt-1"
+                              />
+                              <p className="mt-1 text-xs text-muted-foreground">
+                                Placeholders: {sessionPlaceholders.join(", ")}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+
+                    {sessionRules.length === 0 && (
+                      <div className="text-center py-8 text-muted-foreground">
+                        Nenhuma regra de lembrete configurada. Clique em "Adicionar Regra" para criar
+                        uma.
+                      </div>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Info Card */}
+            <Card className="border-blue-200 bg-blue-50 dark:border-blue-900 dark:bg-blue-950/20">
+              <CardContent className="pt-6">
+                <div className="flex gap-3">
+                  <Info className="h-5 w-5 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+                  <div className="space-y-2 text-sm text-blue-900 dark:text-blue-100">
+                    <p className="font-semibold">Informações importantes:</p>
+                    <ul className="list-disc list-inside space-y-1 text-blue-800 dark:text-blue-200">
+                      <li>
+                        Templates desativados não enviarão notificações mesmo que o evento ocorra
+                      </li>
+                      <li>
+                        Regras de lembrete são executadas automaticamente a cada hora pelo sistema
+                      </li>
+                      <li>Use placeholders para personalizar as mensagens dinamicamente</li>
+                      <li>
+                        Ao salvar, todos os templates/regras serão atualizados (envie sempre todos)
+                      </li>
+                    </ul>
+                  </div>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
