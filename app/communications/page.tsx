@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useSearchParams } from "next/navigation"
 import {
   DndContext,
   DragEndEvent,
@@ -289,6 +290,13 @@ function TaskCardOverlay({
 
 export default function ComunicacoesPage() {
   const { toast } = useToast()
+  const searchParams = useSearchParams()
+  const defaultTab =
+    searchParams.get("tab") === "tasks"
+      ? "tasks"
+      : searchParams.get("tab") === "messages"
+        ? "messages"
+        : "notifications"
   const [messages, setMessages] = useState<Message[]>([])
   const [patients, setPatients] = useState<Patient[]>([])
   const [isLoadingMessages, setIsLoadingMessages] = useState(true)
@@ -723,7 +731,7 @@ export default function ComunicacoesPage() {
           </div>
         </div>
 
-        <Tabs defaultValue="notifications" className="space-y-6">
+        <Tabs defaultValue={defaultTab} className="space-y-6">
           <TabsList>
             <TabsTrigger value="notifications" className="gap-2 relative">
               <Bell className="h-4 w-4" />

@@ -10,11 +10,13 @@ import Link from "next/link"
 import patientService from "@/services/patient-service"
 import sessionService from "@/services/session-service"
 import paymentService from "@/services/payment-service"
+import taskService from "@/services/task-service"
 import { showErrorToast } from "@/lib/toast-helpers"
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isToday, isSameDay, subMonths } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import type { Session } from "@/types/session"
 import type { Payment } from "@/types/payment"
+import type { Task } from "@/types/task"
 
 export default function DashboardPage() {
   const [isLoading, setIsLoading] = useState(true)
@@ -35,6 +37,7 @@ export default function DashboardPage() {
   const [quickActionsOpen, setQuickActionsOpen] = useState(false)
   const [sessionsOpen, setSessionsOpen] = useState(false)
   const [tasksOpen, setTasksOpen] = useState(false)
+  const [dashboardTasks, setDashboardTasks] = useState<Task[]>([])
   const [privacyMode, setPrivacyMode] = useState(false)
 
   useEffect(() => {
@@ -222,6 +225,18 @@ export default function DashboardPage() {
       setTodaySessions([])
     }
 
+    // Carregar tarefas pendentes (todo + in-progress) para o widget Tarefas & Lembretes
+    try {
+      const { tasks: allTasks } = await taskService.getAll({ status: 'all', per_page: 50 })
+      const pending = (allTasks || []).filter(
+        (t) => t.status === 'todo' || t.status === 'in-progress'
+      )
+      setDashboardTasks(pending.slice(0, 8))
+    } catch (error: any) {
+      handleError(error, 'tarefas')
+      setDashboardTasks([])
+    }
+
     setIsLoading(false)
   }
 
@@ -235,6 +250,25 @@ export default function DashboardPage() {
   const formatTime = (dateString: string) => {
     return format(new Date(dateString), "HH:mm", { locale: ptBR })
   }
+
+  const priorityLabel: Record<string, string> = { high: "Alta", medium: "Média", low: "Baixa" }
+  const priorityClass: Record<string, string> = {
+    high: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+    medium: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400",
+    low: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400",
+  }
+
+  const handleTaskComplete = async (task: Task) => {
+    if (task.status === "done") return
+    try {
+      await taskService.complete(task.id)
+      setDashboardTasks((prev) => prev.filter((t) => t.id !== task.id))
+    } catch (error: any) {
+      console.error("Erro ao marcar tarefa como concluída:", error)
+      showErrorToast("Erro", "Não foi possível marcar a tarefa como concluída.")
+    }
+  }
+
   const kpis = [
     {
       title: "Pacientes Ativos",
@@ -444,57 +478,39 @@ export default function DashboardPage() {
               <CollapsibleContent>
                 <CardContent className="pt-0">
                   <div className="space-y-3">
-                    <div className="flex items-start gap-3 rounded-lg border border-border bg-card p-3">
-                      <input
-                        type="checkbox"
-                        className="mt-1 h-4 w-4 rounded border-border text-primary focus:ring-primary shrink-0"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm text-foreground">Atualizar prontuário - Ana Paula</p>
-                        <span className="mt-1 inline-block rounded-full px-2 py-0.5 text-xs bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">
-                          Alta
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-3 rounded-lg border border-border bg-card p-3">
-                      <input
-                        type="checkbox"
-                        className="mt-1 h-4 w-4 rounded border-border text-primary focus:ring-primary shrink-0"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm text-foreground">Enviar relatório para convênio</p>
-                        <span className="mt-1 inline-block rounded-full px-2 py-0.5 text-xs bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400">
-                          Média
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-3 rounded-lg border border-border bg-card p-3">
-                      <input
-                        type="checkbox"
-                        className="mt-1 h-4 w-4 rounded border-border text-primary focus:ring-primary shrink-0"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm text-foreground">Retornar contato - Novo paciente</p>
-                        <span className="mt-1 inline-block rounded-full px-2 py-0.5 text-xs bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">
-                          Alta
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-3 rounded-lg border border-border bg-card p-3">
-                      <input
-                        type="checkbox"
-                        className="mt-1 h-4 w-4 rounded border-border text-primary focus:ring-primary shrink-0"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm text-foreground">Preparar material para sessão de grupo</p>
-                        <span className="mt-1 inline-block rounded-full px-2 py-0.5 text-xs bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400">
-                          Baixa
-                        </span>
-                      </div>
-                    </div>
+                    {isLoading ? (
+                      <p className="text-sm text-muted-foreground py-4">Carregando tarefas...</p>
+                    ) : dashboardTasks.length === 0 ? (
+                      <p className="text-sm text-muted-foreground py-4">Nenhuma tarefa pendente.</p>
+                    ) : (
+                      dashboardTasks.map((task) => (
+                        <div
+                          key={task.id}
+                          className="flex items-start gap-3 rounded-lg border border-border bg-card p-3"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={task.status === "done"}
+                            onChange={() => handleTaskComplete(task)}
+                            className="mt-1 h-4 w-4 rounded border-border text-primary focus:ring-primary shrink-0 cursor-pointer"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm text-foreground">
+                              {task.title ?? task.task}
+                              {task.patient?.name ? ` - ${task.patient.name}` : ""}
+                            </p>
+                            <span
+                              className={`mt-1 inline-block rounded-full px-2 py-0.5 text-xs ${priorityClass[task.priority] ?? priorityClass.low}`}
+                            >
+                              {priorityLabel[task.priority] ?? "Baixa"}
+                            </span>
+                          </div>
+                        </div>
+                      ))
+                    )}
                   </div>
-                  <Button variant="outline" className="mt-4 w-full bg-transparent">
-                    Ver Todas as Tarefas
+                  <Button variant="outline" className="mt-4 w-full bg-transparent" asChild>
+                    <Link href="/communications?tab=tasks">Ver Todas as Tarefas</Link>
                   </Button>
                 </CardContent>
               </CollapsibleContent>
