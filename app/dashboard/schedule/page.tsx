@@ -15,6 +15,7 @@ import googleOAuthService from "@/services/google-oauth-service"
 import { showErrorToast, showSuccessToast } from "@/lib/toast-helpers"
 import { startOfMonth, endOfMonth } from "date-fns"
 import { useSearchParams } from "next/navigation"
+import { useAutoRefresh } from "@/hooks/use-auto-refresh"
 
 export default function SchedulePage() {
   const searchParams = useSearchParams()
@@ -36,6 +37,12 @@ export default function SchedulePage() {
   const [isLoadingGoogleEvents, setIsLoadingGoogleEvents] = useState(true)
   const [importError, setImportError] = useState<string | null>(null)
   const [visibleMonth, setVisibleMonth] = useState(new Date())
+
+  const refetchScheduleData = () => {
+    loadSessionsStats()
+    if (googleConnected) loadGoogleEventsForMonth(visibleMonth)
+  }
+  useAutoRefresh(refetchScheduleData, { intervalMs: 60000 })
 
   useEffect(() => {
     loadSessionsStats()

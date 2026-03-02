@@ -8,7 +8,7 @@ import { Toaster } from "@/components/ui/toaster"
 import { ColorProvider } from "@/components/color-provider"
 import { ThemeProvider } from "@/components/theme-provider"
 import { AuthThemeConnector } from "@/components/auth-theme-connector"
-// import { PWAUpdatePrompt } from "@/components/pwa-update-prompt"
+import { PWAUpdatePrompt } from "@/components/pwa-update-prompt"
 import { PWAInstallPrompt } from "@/components/pwa-install-prompt"
 
 const poppins = Poppins({
@@ -65,7 +65,7 @@ export default function RootLayout({
           <ColorProvider>
             <AuthProvider>
               <AuthThemeConnector />
-              {/* <PWAUpdatePrompt /> */}
+              <PWAUpdatePrompt />
               <PWAInstallPrompt />
               {children}
             </AuthProvider>

@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Calendar, Clock, Video, Heart, Brain, CheckCircle2, AlertCircle, TrendingUp, Sparkles, Loader2, User, BookOpen, FileText, DollarSign, Library } from "lucide-react"
+import { NotificationPromptBanner } from "@/components/notification-prompt-banner"
 import { useAuth } from "@/contexts/auth-context"
 import Link from "next/link"
 import { useState, useEffect } from "react"
@@ -13,6 +14,7 @@ import sessionService from "@/services/session-service"
 import type { Session } from "@/types/session"
 import { SESSION_STATUS_LABELS, SESSION_STATUS_COLORS } from "@/types/session"
 import { format } from "date-fns"
+import { useAutoRefresh } from "@/hooks/use-auto-refresh"
 import { ptBR } from "date-fns/locale"
 import messageService from "@/services/message-service"
 import type { Message } from "@/types/message"
@@ -30,6 +32,13 @@ export default function PatientPortalPage() {
   const [exercisesCount, setExercisesCount] = useState(0)
   const [quizzesCount, setQuizzesCount] = useState(0)
   const [isLoadingStats, setIsLoadingStats] = useState(true)
+
+  const refetchAll = () => {
+    loadNextSession()
+    loadLatestMessage()
+    loadStats()
+  }
+  useAutoRefresh(refetchAll, { intervalMs: 60000 })
 
   useEffect(() => {
     loadNextSession()
@@ -144,6 +153,8 @@ export default function PatientPortalPage() {
           </div>
         </CardHeader>
       </Card>
+
+      <NotificationPromptBanner />
 
       {/* Message from Psychologist */}
       <Card className="group border-primary/20 transition-colors hover:bg-primary/5">

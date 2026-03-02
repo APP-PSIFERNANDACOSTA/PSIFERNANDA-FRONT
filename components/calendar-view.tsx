@@ -29,6 +29,7 @@ const GOOGLE_CALENDAR_COLORS: Record<string, { bg: string; text: string; border:
 }
 const DEFAULT_GOOGLE_COLOR = { bg: "#F6BF26", text: "#1a1a1a", border: "#d4a01f" } // Banana (padrão)
 import sessionService from "@/services/session-service"
+import { useAutoRefresh } from "@/hooks/use-auto-refresh"
 import { showErrorToast, showSuccessToast } from "@/lib/toast-helpers"
 import { Loader2 } from "lucide-react"
 import {
@@ -60,6 +61,8 @@ export function CalendarView({ onSessionClick, googleEvents = [], onMonthChange 
   const [rescheduleDate, setRescheduleDate] = useState<string>("")
   const [rescheduleTime, setRescheduleTime] = useState<string>("")
   const [rescheduleDuration, setRescheduleDuration] = useState<number | null>(null)
+
+  useAutoRefresh(loadSessionsForCurrentMonth, { intervalMs: 60000 })
 
   useEffect(() => {
     loadSessionsForCurrentMonth()

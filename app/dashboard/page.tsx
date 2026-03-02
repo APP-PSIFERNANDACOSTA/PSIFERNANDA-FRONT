@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Users, Calendar, TrendingUp, DollarSign, CheckCircle2, Clock, BookOpen, Loader2, ChevronDown, ChevronUp, Eye, EyeOff } from "lucide-react"
+import { NotificationPromptBanner } from "@/components/notification-prompt-banner"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
@@ -12,6 +13,7 @@ import sessionService from "@/services/session-service"
 import paymentService from "@/services/payment-service"
 import taskService from "@/services/task-service"
 import { showErrorToast } from "@/lib/toast-helpers"
+import { useAutoRefresh } from "@/hooks/use-auto-refresh"
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isToday, isSameDay, subMonths } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import type { Session } from "@/types/session"
@@ -39,6 +41,8 @@ export default function DashboardPage() {
   const [tasksOpen, setTasksOpen] = useState(false)
   const [dashboardTasks, setDashboardTasks] = useState<Task[]>([])
   const [privacyMode, setPrivacyMode] = useState(false)
+
+  useAutoRefresh(loadDashboardData, { intervalMs: 60000 })
 
   useEffect(() => {
     loadDashboardData()
@@ -380,6 +384,8 @@ export default function DashboardPage() {
             </Link>
           </div>
         </div>
+
+        <NotificationPromptBanner />
 
         {/* KPI Cards */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
