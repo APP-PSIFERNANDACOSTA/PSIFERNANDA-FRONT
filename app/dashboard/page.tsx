@@ -42,8 +42,6 @@ export default function DashboardPage() {
   const [dashboardTasks, setDashboardTasks] = useState<Task[]>([])
   const [privacyMode, setPrivacyMode] = useState(false)
 
-  useAutoRefresh(loadDashboardData, { intervalMs: 60000 })
-
   useEffect(() => {
     loadDashboardData()
     // Carregar preferência de privacidade do localStorage (apenas no cliente)
@@ -243,6 +241,8 @@ export default function DashboardPage() {
 
     setIsLoading(false)
   }
+
+  useAutoRefresh(loadDashboardData, { intervalMs: 60000 })
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {

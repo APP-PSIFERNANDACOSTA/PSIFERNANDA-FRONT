@@ -62,14 +62,6 @@ export function CalendarView({ onSessionClick, googleEvents = [], onMonthChange 
   const [rescheduleTime, setRescheduleTime] = useState<string>("")
   const [rescheduleDuration, setRescheduleDuration] = useState<number | null>(null)
 
-  useAutoRefresh(loadSessionsForCurrentMonth, { intervalMs: 60000 })
-
-  useEffect(() => {
-    loadSessionsForCurrentMonth()
-    onMonthChange?.(currentDate)
-  }, [currentDate])
-
-
   const loadSessionsForCurrentMonth = async () => {
     setIsLoading(true)
     try {
@@ -89,6 +81,13 @@ export function CalendarView({ onSessionClick, googleEvents = [], onMonthChange 
       setIsLoading(false)
     }
   }
+
+  useAutoRefresh(loadSessionsForCurrentMonth, { intervalMs: 60000 })
+
+  useEffect(() => {
+    loadSessionsForCurrentMonth()
+    onMonthChange?.(currentDate)
+  }, [currentDate])
 
   const monthStart = startOfMonth(currentDate)
   const monthEnd = endOfMonth(currentDate)
