@@ -35,11 +35,11 @@ export function PatientHeader({ onMenuClick }: PatientHeaderProps) {
           <Image
             src="/simbolo.png"
             alt="Logo"
-            width={40}
-            height={40}
+            width={48}
+            height={48}
             className="rounded-lg"
           />
-          <span className="text-sm font-semibold text-foreground">Portal</span>
+          <span className="text-sm font-semibold text-foreground">Portal do Paciente</span>
         </div>
         
         {/* Espaço vazio no desktop para empurrar ícones para direita */}
