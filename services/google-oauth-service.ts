@@ -30,6 +30,60 @@ class GoogleOAuthService {
   async disconnect(): Promise<void> {
     await apiClient.post('/google/oauth/disconnect');
   }
+
+  /**
+   * Get events from Google Calendar for a date range (manual import - calls Google API)
+   */
+  async getCalendarEvents(startDate: string, endDate: string): Promise<GoogleCalendarEvent[]> {
+    const response = await apiClient.get<{ success: boolean; events: GoogleCalendarEvent[] }>(
+      '/google/calendar/events',
+      { params: { start_date: startDate, end_date: endDate } }
+    );
+    if (!response.success || !response.events) return [];
+    return response.events;
+  }
+
+  /**
+   * Get stored imported events from backend (no Google API call)
+   */
+  async getImportedEvents(startDate: string, endDate: string): Promise<GoogleCalendarEvent[]> {
+    const response = await apiClient.get<{ success: boolean; events: GoogleCalendarEvent[] }>(
+      '/google/calendar/imported-events',
+      { params: { start_date: startDate, end_date: endDate } }
+    );
+    if (!response.success || !response.events) return [];
+    return response.events;
+  }
+
+  /**
+   * Save imported events to backend (persist after first import)
+   */
+  async storeImportedEvents(events: GoogleCalendarEvent[]): Promise<void> {
+    await apiClient.post('/google/calendar/imported-events', {
+      events: events.map(e => ({
+        id: e.id,
+        summary: e.summary,
+        description: e.description,
+        start: e.start,
+        end: e.end,
+        colorId: e.colorId,
+        htmlLink: e.htmlLink,
+        hangoutLink: e.hangoutLink ?? e.meetLink,
+      })),
+    });
+  }
+}
+
+export interface GoogleCalendarEvent {
+  id: string;
+  summary: string;
+  description?: string | null;
+  start: string;
+  end: string;
+  colorId?: string | null;
+  htmlLink?: string;
+  hangoutLink?: string; // Link da chamada Google Meet
+  meetLink?: string; // Fallback de link de videoconferência
 }
 
 export const googleOAuthService = new GoogleOAuthService();

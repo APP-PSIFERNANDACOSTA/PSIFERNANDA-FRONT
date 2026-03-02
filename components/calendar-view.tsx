@@ -6,11 +6,28 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, User, CheckCircle2, CalendarClock, Trash2, AlertCircle, X, Save } from "lucide-react"
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, User, CheckCircle2, CalendarClock, Trash2, AlertCircle, X, Save, Video, ExternalLink } from "lucide-react"
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, startOfWeek, endOfWeek } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import type { Session } from "@/types/session"
 import { SESSION_STATUS_LABELS, SESSION_STATUS_COLORS } from "@/types/session"
+import type { GoogleCalendarEvent } from "@/services/google-oauth-service"
+
+/** Mapeamento das cores do Google Calendar (colorId) - https://developers.google.com/workspace/calendar/api/v3/reference/colors */
+const GOOGLE_CALENDAR_COLORS: Record<string, { bg: string; text: string; border: string }> = {
+  "1": { bg: "#7986CB", text: "#fff", border: "#5c6bc0" },   // Lavender
+  "2": { bg: "#33B679", text: "#fff", border: "#2e9d6a" },   // Sage
+  "3": { bg: "#8E24AA", text: "#fff", border: "#701e88" },   // Grape
+  "4": { bg: "#E67C73", text: "#fff", border: "#e04a3f" },  // Flamingo
+  "5": { bg: "#F6BF26", text: "#1a1a1a", border: "#d4a01f" }, // Banana
+  "6": { bg: "#F4511E", text: "#fff", border: "#d84315" },   // Tangerine
+  "7": { bg: "#039BE5", text: "#fff", border: "#0288d1" },  // Peacock
+  "8": { bg: "#616161", text: "#fff", border: "#424242" },   // Graphite
+  "9": { bg: "#3F51B5", text: "#fff", border: "#303f9f" },  // Blueberry
+  "10": { bg: "#0B8043", text: "#fff", border: "#06602e" },  // Basil
+  "11": { bg: "#D50000", text: "#fff", border: "#b71c1c" }, // Tomato
+}
+const DEFAULT_GOOGLE_COLOR = { bg: "#F6BF26", text: "#1a1a1a", border: "#d4a01f" } // Banana (padrão)
 import sessionService from "@/services/session-service"
 import { showErrorToast, showSuccessToast } from "@/lib/toast-helpers"
 import { Loader2 } from "lucide-react"
@@ -23,14 +40,18 @@ import {
 
 interface CalendarViewProps {
   onSessionClick?: (session: Session) => void
+  googleEvents?: GoogleCalendarEvent[]
+  onMonthChange?: (date: Date) => void
 }
 
-export function CalendarView({ onSessionClick }: CalendarViewProps) {
+export function CalendarView({ onSessionClick, googleEvents = [], onMonthChange }: CalendarViewProps) {
   const [currentDate, setCurrentDate] = useState(new Date())
   const [sessions, setSessions] = useState<Session[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [selectedSession, setSelectedSession] = useState<Session | null>(null)
+  const [selectedGoogleEvent, setSelectedGoogleEvent] = useState<GoogleCalendarEvent | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isGoogleEventModalOpen, setIsGoogleEventModalOpen] = useState(false)
   const [isActioning, setIsActioning] = useState(false)
   const [selectedDay, setSelectedDay] = useState<Date | null>(null)
   const [showTodayList, setShowTodayList] = useState(false)
@@ -42,6 +63,7 @@ export function CalendarView({ onSessionClick }: CalendarViewProps) {
 
   useEffect(() => {
     loadSessionsForCurrentMonth()
+    onMonthChange?.(currentDate)
   }, [currentDate])
 
 
@@ -79,6 +101,13 @@ export function CalendarView({ onSessionClick }: CalendarViewProps) {
     })
   }
 
+  const getGoogleEventsForDay = (day: Date) => {
+    return googleEvents.filter(ev => {
+      const evStart = new Date(ev.start)
+      return isSameDay(evStart, day)
+    })
+  }
+
   const nextMonth = () => {
     const newDate = addMonths(currentDate, 1)
     setCurrentDate(newDate)
@@ -102,19 +131,28 @@ export function CalendarView({ onSessionClick }: CalendarViewProps) {
 
   const getSessionsForSelectedDay = () => {
     if (!selectedDay) return []
-    // Normalizar a data selecionada (remover horas)
     const selectedDayOnly = new Date(
       selectedDay.getFullYear(),
       selectedDay.getMonth(),
       selectedDay.getDate()
     )
-    
     return sessions.filter(session => {
       const sessionDate = new Date(session.session_date)
       return isSameDay(sessionDate, selectedDayOnly)
     }).sort((a, b) => {
       return new Date(a.session_date).getTime() - new Date(b.session_date).getTime()
     })
+  }
+
+  const getGoogleEventsForSelectedDay = () => {
+    if (!selectedDay) return []
+    return googleEvents.filter(ev => isSameDay(new Date(ev.start), selectedDay))
+      .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime())
+  }
+
+  const getGoogleEventStyle = (ev: GoogleCalendarEvent) => {
+    const c = ev.colorId ? GOOGLE_CALENDAR_COLORS[ev.colorId] ?? DEFAULT_GOOGLE_COLOR : DEFAULT_GOOGLE_COLOR
+    return { backgroundColor: c.bg, color: c.text, borderColor: c.border }
   }
 
   const formatTime = (dateString: string) => {
@@ -174,6 +212,7 @@ export function CalendarView({ onSessionClick }: CalendarViewProps) {
               {/* Calendar days */}
               {days.map((day, index) => {
                 const daySessions = getSessionsForDay(day)
+                const dayGoogleEvents = getGoogleEventsForDay(day)
                 const isCurrentMonth = isSameMonth(day, currentDate)
                 const isToday = isSameDay(day, new Date())
 
@@ -218,9 +257,25 @@ export function CalendarView({ onSessionClick }: CalendarViewProps) {
                           <div className="truncate">{session.patient?.name || 'Sem paciente'}</div>
                         </div>
                       ))}
-                      {daySessions.length > 3 && (
+                      {dayGoogleEvents.slice(0, 3 - daySessions.length).map((ev) => (
+                        <div
+                          key={ev.id}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setSelectedGoogleEvent(ev)
+                            setIsGoogleEventModalOpen(true)
+                          }}
+                          className="text-xs p-1 rounded truncate border cursor-pointer hover:opacity-90 transition-opacity"
+                          style={getGoogleEventStyle(ev)}
+                          title={`${format(new Date(ev.start), 'HH:mm')} - ${ev.summary} (Google) - Clique para ver detalhes`}
+                        >
+                          <div className="font-medium">{format(new Date(ev.start), 'HH:mm', { locale: ptBR })}</div>
+                          <div className="truncate">{ev.summary}</div>
+                        </div>
+                      ))}
+                      {(daySessions.length + dayGoogleEvents.length) > 3 && (
                         <div className="text-xs text-gray-500 font-medium px-1">
-                          +{daySessions.length - 3} mais
+                          +{daySessions.length + dayGoogleEvents.length - 3} mais
                         </div>
                       )}
                     </div>
@@ -231,14 +286,15 @@ export function CalendarView({ onSessionClick }: CalendarViewProps) {
           ) : (
             // Visualização em Lista
             <div className="space-y-3">
-              {getSessionsForSelectedDay().length === 0 ? (
+              {getSessionsForSelectedDay().length === 0 && getGoogleEventsForSelectedDay().length === 0 ? (
                 <div className="text-center py-12 text-muted-foreground">
                   <CalendarIcon className="h-16 w-16 mx-auto mb-4 opacity-50" />
                   <p className="font-medium text-lg">Nenhuma sessão agendada para este dia</p>
-                  <p className="text-sm mt-2">Clique em "Voltar ao Calendário" para ver outros dias</p>
+                  <p className="text-sm mt-2">Clique em "Voltar ao Calendário" ou importe eventos do Google</p>
                 </div>
               ) : (
-                getSessionsForSelectedDay().map((session) => (
+                <>
+                {getSessionsForSelectedDay().map((session) => (
                   <Card
                     key={session.id}
                     className="cursor-pointer hover:shadow-md transition-shadow"
@@ -288,7 +344,38 @@ export function CalendarView({ onSessionClick }: CalendarViewProps) {
                       </div>
                     </CardContent>
                   </Card>
-                ))
+                ))}
+                {getGoogleEventsForSelectedDay().map((ev) => (
+                  <Card
+                    key={ev.id}
+                    className="border cursor-pointer hover:shadow-md hover:opacity-95 transition-all"
+                    style={{ ...getGoogleEventStyle(ev), borderWidth: '1px' }}
+                    onClick={() => {
+                      setSelectedGoogleEvent(ev)
+                      setIsGoogleEventModalOpen(true)
+                    }}
+                  >
+                    <CardContent className="p-4">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex items-start gap-4 flex-1">
+                          <div className="flex flex-col items-center justify-center rounded-lg p-4 min-w-[90px] bg-black/10">
+                            <span className="text-3xl font-bold" style={{ color: getGoogleEventStyle(ev).color }}>
+                              {format(new Date(ev.start), 'HH:mm', { locale: ptBR })}
+                            </span>
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <CalendarIcon className="h-5 w-5 opacity-80" />
+                              <span className="font-semibold text-xl">{ev.summary}</span>
+                            </div>
+                            <Badge variant="outline" className="mt-2 opacity-90">Google Calendar</Badge>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+                </>
               )}
             </div>
           )}
@@ -583,6 +670,70 @@ export function CalendarView({ onSessionClick }: CalendarViewProps) {
                   </div>
                 </div>
               )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Google Event Details Modal */}
+      <Dialog open={isGoogleEventModalOpen} onOpenChange={(open) => {
+        setIsGoogleEventModalOpen(open)
+        if (!open) setSelectedGoogleEvent(null)
+      }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {selectedGoogleEvent && (
+                <span
+                  className="inline-block w-2 h-2 rounded-full"
+                  style={{ backgroundColor: getGoogleEventStyle(selectedGoogleEvent).backgroundColor }}
+                />
+              )}
+              Evento do Google Calendar
+            </DialogTitle>
+          </DialogHeader>
+          {selectedGoogleEvent && (
+            <div className="space-y-4">
+              <div>
+                <p className="font-semibold text-lg">{selectedGoogleEvent.summary}</p>
+                <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
+                  <Clock className="h-4 w-4" />
+                  {format(new Date(selectedGoogleEvent.start), "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR })} às {format(new Date(selectedGoogleEvent.start), 'HH:mm', { locale: ptBR })} - {format(new Date(selectedGoogleEvent.end), 'HH:mm', { locale: ptBR })}
+                </div>
+              </div>
+              {selectedGoogleEvent.description && (
+                <p className="text-sm text-muted-foreground whitespace-pre-wrap bg-muted/50 p-3 rounded-md border">
+                  {selectedGoogleEvent.description}
+                </p>
+              )}
+              <div className="flex flex-wrap gap-2 pt-2">
+                {selectedGoogleEvent.hangoutLink && (
+                  <Button
+                    asChild
+                    variant="default"
+                    size="sm"
+                    className="gap-2"
+                  >
+                    <a href={selectedGoogleEvent.hangoutLink} target="_blank" rel="noopener noreferrer">
+                      <Video className="h-4 w-4" />
+                      Entrar na chamada
+                    </a>
+                  </Button>
+                )}
+                {selectedGoogleEvent.htmlLink && (
+                  <Button
+                    asChild
+                    variant="outline"
+                    size="sm"
+                    className="gap-2"
+                  >
+                    <a href={selectedGoogleEvent.htmlLink} target="_blank" rel="noopener noreferrer">
+                      <ExternalLink className="h-4 w-4" />
+                      Abrir no Google Calendar
+                    </a>
+                  </Button>
+                )}
+              </div>
             </div>
           )}
         </DialogContent>

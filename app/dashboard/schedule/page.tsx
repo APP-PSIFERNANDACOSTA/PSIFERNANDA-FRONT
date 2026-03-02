@@ -3,12 +3,13 @@
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { CalendarView } from "@/components/calendar-view"
 import { Card, CardContent } from "@/components/ui/card"
-import { Plus, Loader2, Calendar, CheckCircle2, XCircle } from "lucide-react"
+import { Plus, Loader2, Calendar, CheckCircle2, XCircle, Download, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import Link from "next/link"
 import { useState, useEffect } from "react"
 import type { Session } from "@/types/session"
+import type { GoogleCalendarEvent } from "@/services/google-oauth-service"
 import sessionService from "@/services/session-service"
 import googleOAuthService from "@/services/google-oauth-service"
 import { showErrorToast, showSuccessToast } from "@/lib/toast-helpers"
@@ -30,6 +31,11 @@ export default function SchedulePage() {
   const [isCheckingGoogle, setIsCheckingGoogle] = useState(true)
   const [isConnecting, setIsConnecting] = useState(false)
   const [isDisconnecting, setIsDisconnecting] = useState(false)
+  const [googleEvents, setGoogleEvents] = useState<GoogleCalendarEvent[]>([])
+  const [isImportingGoogle, setIsImportingGoogle] = useState(false)
+  const [isLoadingGoogleEvents, setIsLoadingGoogleEvents] = useState(true)
+  const [importError, setImportError] = useState<string | null>(null)
+  const [visibleMonth, setVisibleMonth] = useState(new Date())
 
   useEffect(() => {
     loadSessionsStats()
@@ -43,6 +49,43 @@ export default function SchedulePage() {
       window.history.replaceState({}, '', '/dashboard/schedule')
     }
   }, [searchParams])
+
+  const loadGoogleEventsForMonth = async (month: Date): Promise<boolean> => {
+    if (!googleConnected) {
+      setIsLoadingGoogleEvents(false)
+      return false
+    }
+    try {
+      setIsLoadingGoogleEvents(true)
+      setImportError(null)
+      const start = startOfMonth(month)
+      const end = endOfMonth(month)
+      // Busca direto no Google - eventos novos criados na agenda aparecem automaticamente
+      const events = await googleOAuthService.getCalendarEvents(start.toISOString(), end.toISOString())
+      setGoogleEvents(events)
+      // Salva em background para cache (útil em caso de erro futuro)
+      if (events.length > 0) {
+        googleOAuthService.storeImportedEvents(events).catch(() => {})
+      }
+      return true
+    } catch (error: any) {
+      console.error("Erro ao carregar eventos do Google:", error)
+      setImportError(error?.response?.data?.message || "Não foi possível buscar eventos.")
+      setGoogleEvents([])
+      return false
+    } finally {
+      setIsLoadingGoogleEvents(false)
+    }
+  }
+
+  useEffect(() => {
+    if (googleConnected && !isCheckingGoogle) {
+      loadGoogleEventsForMonth(visibleMonth)
+    } else if (!isCheckingGoogle) {
+      setIsLoadingGoogleEvents(false)
+      setGoogleEvents([])
+    }
+  }, [googleConnected, isCheckingGoogle, visibleMonth])
 
   const loadSessionsStats = async () => {
     try {
@@ -107,6 +150,13 @@ export default function SchedulePage() {
     }
   }
 
+  const handleRetryGoogleEvents = async () => {
+    setIsImportingGoogle(true)
+    const ok = await loadGoogleEventsForMonth(visibleMonth)
+    if (ok) showSuccessToast("Eventos atualizados", "Eventos do Google Calendar carregados com sucesso")
+    setIsImportingGoogle(false)
+  }
+
   const handleDisconnectGoogle = async () => {
     if (!confirm("Desconectar o Google Calendar? As sessões futuras não serão sincronizadas automaticamente.")) {
       return
@@ -116,6 +166,8 @@ export default function SchedulePage() {
       await googleOAuthService.disconnect()
       setGoogleConnected(false)
       setGoogleExpired(false)
+      setGoogleEvents([])
+      setImportError(null)
       showSuccessToast("Google Calendar desconectado", "A integração foi removida com sucesso")
     } catch (error: any) {
       console.error("Erro ao desconectar Google Calendar:", error)
@@ -154,6 +206,42 @@ export default function SchedulePage() {
             </p>
           </div>
           <div className="flex items-center gap-2">
+            {!isCheckingGoogle && googleConnected && !importError && (
+              <Button
+                onClick={() => loadGoogleEventsForMonth(visibleMonth)}
+                disabled={isLoadingGoogleEvents}
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                title="Atualizar eventos do Google Calendar"
+              >
+                {isLoadingGoogleEvents ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-4 w-4" />
+                )}
+              </Button>
+            )}
+            {!isCheckingGoogle && googleConnected && importError && (
+              <Button
+                onClick={handleRetryGoogleEvents}
+                disabled={isImportingGoogle}
+                variant="outline"
+                className="gap-2 border-amber-300 text-amber-700 hover:bg-amber-50"
+              >
+                {isImportingGoogle ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Repuxando...
+                  </>
+                ) : (
+                  <>
+                    <Download className="h-4 w-4" />
+                    Repuxar eventos do Google
+                  </>
+                )}
+              </Button>
+            )}
             {!isCheckingGoogle && googleConnected && (
               <Button
                 onClick={handleDisconnectGoogle}
@@ -276,7 +364,11 @@ export default function SchedulePage() {
         </div>
 
         {/* Calendar View */}
-        <CalendarView onSessionClick={handleSessionClick} />
+        <CalendarView
+          onSessionClick={handleSessionClick}
+          googleEvents={googleEvents}
+          onMonthChange={setVisibleMonth}
+        />
       </div>
     </DashboardLayout>
   )

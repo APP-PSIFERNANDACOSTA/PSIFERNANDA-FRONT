@@ -4,9 +4,9 @@
   "private": true,
   "scripts": {
     "build": "next build && bash post-build.sh",
-    "dev": "next dev",
+    "dev": "next dev -p 3005",
     "lint": "eslint .",
-    "start": "next start"
+    "start": "next start -p 3005"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.1.0",
