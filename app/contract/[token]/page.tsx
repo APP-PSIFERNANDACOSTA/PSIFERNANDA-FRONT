@@ -47,6 +47,7 @@ export default function ContractSignPage() {
     patient_email: '',
     patient_phone: '',
     patient_cpf: '',
+    patient_birthdate: '',
     emergency_contact: '',
     payment_day: undefined,
     accept_terms: false,
@@ -359,6 +360,17 @@ export default function ContractSignPage() {
                     onChange={(e) => setFormData({ ...formData, patient_cpf: formatCPF(e.target.value) })}
                     placeholder="000.000.000-00"
                     maxLength={14}
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="patient_birthdate">Data de Nascimento *</Label>
+                  <Input
+                    id="patient_birthdate"
+                    type="date"
+                    value={formData.patient_birthdate}
+                    onChange={(e) => setFormData({ ...formData, patient_birthdate: e.target.value })}
                     required
                   />
                 </div>

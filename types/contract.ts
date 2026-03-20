@@ -31,6 +31,7 @@ export interface SignContractData {
   patient_email: string;
   patient_phone: string;
   patient_cpf: string;
+  patient_birthdate: string;
   emergency_contact: string;
   payment_day?: number;
   accept_terms: boolean;
