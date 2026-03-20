@@ -22,10 +22,12 @@ import {
   ChevronUp
 } from "lucide-react"
 import paymentService from "@/services/payment-service"
+import contractService from "@/services/contract-service"
 import type { Payment } from "@/types/payment"
+import type { Contract } from "@/types/contract"
 import { PAYMENT_METHOD_LABELS, PAYMENT_METHOD_COLORS } from "@/types/payment"
 import { showErrorToast } from "@/lib/toast-helpers"
-import { format, startOfMonth, endOfMonth, subMonths, startOfYear, endOfYear } from "date-fns"
+import { format, startOfMonth, endOfMonth, subMonths, startOfYear, endOfYear, addDays } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import { useRouter } from "next/navigation"
 import apiClient from "@/lib/api-client"
@@ -39,10 +41,15 @@ export default function FinancialReportPage() {
   const [filterMethod, setFilterMethod] = useState<string>("all")
   const [isDownloading, setIsDownloading] = useState<number | null>(null)
   const [filtersOpen, setFiltersOpen] = useState(false)
+  const [signedContracts, setSignedContracts] = useState<Contract[]>([])
 
   useEffect(() => {
     loadPayments()
   }, [filterPeriod, filterMethod])
+
+  useEffect(() => {
+    loadSignedContracts()
+  }, [])
 
   const loadPayments = async () => {
     setIsLoading(true)
@@ -88,6 +95,18 @@ export default function FinancialReportPage() {
       setPayments([])
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const loadSignedContracts = async () => {
+    try {
+      const response = await contractService.getAll("signed")
+      if (response.success) {
+        setSignedContracts(response.contracts || [])
+      }
+    } catch {
+      // Não bloqueia a tela de financeiro se a projeção falhar
+      setSignedContracts([])
     }
   }
 
@@ -137,9 +156,79 @@ export default function FinancialReportPage() {
     }).format(Number(amount))
   }
 
+  const countMonthlyDayOccurrencesInRange = (daysOfMonth: number[], start: Date, end: Date) => {
+    const daySet = new Set(daysOfMonth)
+    let count = 0
+
+    const rangeStart = new Date(start)
+    rangeStart.setHours(0, 0, 0, 0)
+    const rangeEnd = new Date(end)
+    rangeEnd.setHours(0, 0, 0, 0)
+
+    const cursor = new Date(rangeStart)
+    while (cursor <= rangeEnd) {
+      if (daySet.has(cursor.getDate())) {
+        count += 1
+      }
+      cursor.setDate(cursor.getDate() + 1)
+    }
+
+    return count
+  }
+
+  const getOccurrencesForPeriod = (contract: Contract, start: Date, end: Date) => {
+    const periodStart = new Date(start)
+    periodStart.setHours(0, 0, 0, 0)
+    const periodEnd = new Date(end)
+    periodEnd.setHours(0, 0, 0, 0)
+    const periodDays = Math.max(1, Math.floor((periodEnd.getTime() - periodStart.getTime()) / (1000 * 60 * 60 * 24)) + 1)
+
+    switch (contract.payment_type) {
+      case "por_sessao":
+        // Estimativa padrão de 1 sessão por semana por contrato.
+        return Math.max(1, Math.ceil(periodDays / 7))
+      case "quinzenal":
+        // Contrato quinzenal usa ciclos de cobrança nos dias 15 e 30.
+        return countMonthlyDayOccurrencesInRange([15, 30], periodStart, periodEnd)
+      case "mensal": {
+        const paymentDay = contract.payment_day
+        if (!paymentDay) {
+          return periodDays >= 30 ? 1 : 0
+        }
+        return countMonthlyDayOccurrencesInRange([paymentDay], periodStart, periodEnd)
+      }
+      default:
+        return 0
+    }
+  }
+
+  const getProjectedRevenue = (windowDays: number) => {
+    const start = new Date()
+    start.setHours(0, 0, 0, 0)
+    const end = addDays(start, windowDays)
+
+    return signedContracts.reduce((sum, contract) => {
+      const amount = Number(contract.price_session || 0)
+      const occurrences = getOccurrencesForPeriod(contract, start, end)
+      return sum + amount * occurrences
+    }, 0)
+  }
+
+  const getProjectedRevenueForPeriod = (start: Date, end: Date) => {
+    return signedContracts.reduce((sum, contract) => {
+      const amount = Number(contract.price_session || 0)
+      const occurrences = getOccurrencesForPeriod(contract, start, end)
+      return sum + amount * occurrences
+    }, 0)
+  }
+
   // Calcular totais
   const totalAmount = payments.reduce((sum, payment) => sum + Number(payment.amount), 0)
   const totalPayments = payments.length
+  const projectedWeekly = getProjectedRevenue(7)
+  const projectedFortnight = getProjectedRevenue(15)
+  const projectedMonthly = getProjectedRevenue(30)
+  const projectedCurrentMonth = getProjectedRevenueForPeriod(startOfMonth(new Date()), endOfMonth(new Date()))
   
   // Filtrar por termo de busca
   const filteredPayments = payments.filter((payment) => {
@@ -258,6 +347,73 @@ export default function FinancialReportPage() {
             </CollapsibleContent>
           </Collapsible>
         </Card>
+
+        {/* Projeção de Recebimentos por Contrato */}
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Média Semanal (estimada)</p>
+                  <p className="text-3xl font-bold text-emerald-600 mt-1">
+                    {formatCurrency(projectedWeekly.toFixed(2))}
+                  </p>
+                </div>
+                <div className="h-12 w-12 rounded-lg bg-emerald-100 flex items-center justify-center">
+                  <Calendar className="h-6 w-6 text-emerald-600" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Projeção Quinzenal (15 dias)</p>
+                  <p className="text-3xl font-bold text-indigo-600 mt-1">
+                    {formatCurrency(projectedFortnight.toFixed(2))}
+                  </p>
+                </div>
+                <div className="h-12 w-12 rounded-lg bg-indigo-100 flex items-center justify-center">
+                  <TrendingUp className="h-6 w-6 text-indigo-600" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Projeção Mensal (30 dias)</p>
+                  <p className="text-3xl font-bold text-purple-600 mt-1">
+                    {formatCurrency(projectedMonthly.toFixed(2))}
+                  </p>
+                </div>
+                <div className="h-12 w-12 rounded-lg bg-purple-100 flex items-center justify-center">
+                  <DollarSign className="h-6 w-6 text-purple-600" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Potencial do Mês (dia 1 ao fim)</p>
+                  <p className="text-3xl font-bold text-teal-600 mt-1">
+                    {formatCurrency(projectedCurrentMonth.toFixed(2))}
+                  </p>
+                </div>
+                <div className="h-12 w-12 rounded-lg bg-teal-100 flex items-center justify-center">
+                  <DollarSign className="h-6 w-6 text-teal-600" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
 
         {/* Summary Cards */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
