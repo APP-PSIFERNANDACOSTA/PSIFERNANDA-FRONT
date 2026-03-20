@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Plus, Eye, Copy, Mail, FileText, Loader2 } from "lucide-react"
+import { Plus, Eye, Copy, Mail, FileText, Loader2, Trash2 } from "lucide-react"
 import contractService from "@/services/contract-service"
 import type { Contract, ContractStatus } from "@/types/contract"
 import { CONTRACT_STATUS_LABELS } from "@/types/contract"
@@ -75,6 +75,22 @@ export default function ContractsPage() {
     }
   }
 
+  const handleDelete = async (id: number) => {
+    const confirmed = window.confirm("Tem certeza que deseja excluir este contrato? Esta ação não pode ser desfeita.")
+    if (!confirmed) return
+
+    try {
+      await contractService.delete(id)
+      showSuccessToast("Contrato excluído!", "O contrato foi removido com sucesso")
+      loadContracts()
+    } catch (error: any) {
+      showErrorToast(
+        "Erro ao excluir contrato",
+        error.response?.data?.message || "Tente novamente mais tarde"
+      )
+    }
+  }
+
   const getStatusBadgeColor = (status: ContractStatus) => {
     switch (status) {
       case 'pending':
@@ -98,6 +114,11 @@ export default function ContractsPage() {
       hour: "2-digit",
       minute: "2-digit",
     })
+  }
+
+  const isPendingExpired = (contract: Contract) => {
+    if (contract.status !== "pending") return false
+    return new Date(contract.expires_at).getTime() < Date.now()
   }
 
   const formatPrice = (price: string) => {
@@ -173,7 +194,10 @@ export default function ContractsPage() {
               </Card>
             ) : (
               <div className="grid gap-4">
-                {contracts.map((contract) => (
+                {contracts.map((contract) => {
+                  const pendingExpired = isPendingExpired(contract)
+
+                  return (
                   <Card key={contract.id} className="hover:shadow-md transition-shadow">
                     <CardContent className="p-4 sm:p-6">
                       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
@@ -181,9 +205,9 @@ export default function ContractsPage() {
                           <div className="flex flex-wrap items-center gap-2 mb-3">
                             <Badge 
                               variant="outline" 
-                              className={`${getStatusBadgeColor(contract.status)} font-medium text-xs`}
+                              className={`${getStatusBadgeColor(pendingExpired ? 'expired' : contract.status)} font-medium text-xs`}
                             >
-                              {CONTRACT_STATUS_LABELS[contract.status]}
+                              {CONTRACT_STATUS_LABELS[pendingExpired ? 'expired' : contract.status]}
                             </Badge>
                             {contract.status === 'signed' && contract.pdf_path && (
                               <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-200 text-xs">
@@ -215,6 +239,13 @@ export default function ContractsPage() {
                             </div>
                           )}
 
+                          {contract.internal_description && (
+                            <div className="mb-3 sm:mb-4">
+                              <p className="text-xs sm:text-sm font-medium text-gray-500">Descrição Interna</p>
+                              <p className="text-sm sm:text-base text-gray-900 break-words">{contract.internal_description}</p>
+                            </div>
+                          )}
+
                           {contract.signed_at && (
                             <div className="mb-3 sm:mb-4">
                               <p className="text-xs sm:text-sm font-medium text-gray-500">Assinado em</p>
@@ -235,7 +266,7 @@ export default function ContractsPage() {
                             <span className="sm:hidden">Ver Detalhes</span>
                           </Button>
                           
-                          {contract.status === 'pending' && (
+                          {contract.status === 'pending' && !pendingExpired && (
                             <>
                               <Button
                                 variant="outline"
@@ -256,7 +287,40 @@ export default function ContractsPage() {
                                 <Mail className="h-3 w-3" />
                                 Reenviar
                               </Button>
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                                onClick={() => handleDelete(contract.id)}
+                                className="gap-1 w-full sm:w-auto"
+                              >
+                                <Trash2 className="h-3 w-3" />
+                                Excluir
+                              </Button>
                             </>
+                          )}
+
+                          {contract.status === 'expired' && (
+                            <Button
+                                variant="destructive"
+                                size="sm"
+                                onClick={() => handleDelete(contract.id)}
+                                className="gap-1 w-full sm:w-auto"
+                              >
+                                <Trash2 className="h-3 w-3" />
+                                Excluir
+                              </Button>
+                          )}
+
+                          {contract.status === 'pending' && pendingExpired && (
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => handleDelete(contract.id)}
+                              className="gap-1 w-full sm:w-auto"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                              Excluir
+                            </Button>
                           )}
                           
                           {contract.status === 'signed' && (
@@ -273,7 +337,8 @@ export default function ContractsPage() {
                       </div>
                     </CardContent>
                   </Card>
-                ))}
+                  )
+                })}
               </div>
             )}
           </TabsContent>

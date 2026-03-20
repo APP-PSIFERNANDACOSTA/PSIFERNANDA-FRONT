@@ -14,6 +14,7 @@ export interface Contract {
   signed_at: string | null;
   signature_ip: string | null;
   contract_text: string;
+  internal_description: string | null;
   pdf_path: string | null;
   pdf_url?: string;
   patient?: Patient;
@@ -24,6 +25,7 @@ export interface Contract {
 export interface CreateContractData {
   payment_type: ContractPaymentType;
   price_session: number;
+  internal_description?: string;
 }
 
 export interface SignContractData {

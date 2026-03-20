@@ -247,6 +247,13 @@ export default function ContractViewPage() {
                     <p className="text-lg">Dia {contract.payment_day} de cada mês</p>
                   </div>
                 )}
+
+                {contract.internal_description && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">Descrição Interna</label>
+                    <p className="text-sm">{contract.internal_description}</p>
+                  </div>
+                )}
                 
                 <div className="grid grid-cols-2 gap-4">
                   <div>

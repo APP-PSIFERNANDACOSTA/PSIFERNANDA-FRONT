@@ -23,6 +23,7 @@ export default function CreateContractPage() {
   const [formData, setFormData] = useState<CreateContractData>({
     payment_type: 'por_sessao',
     price_session: 0,
+    internal_description: '',
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -200,6 +201,12 @@ Peço que preencha o formulário abaixo para o cadastro completo.`
                       })}
                     </p>
                   </div>
+                  {contract.internal_description && (
+                    <div className="col-span-2">
+                      <span className="font-medium text-gray-500">Descrição Interna:</span>
+                      <p className="text-gray-900">{contract.internal_description}</p>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -210,7 +217,7 @@ Peço que preencha o formulário abaixo para o cadastro completo.`
                 <Button 
                   onClick={() => {
                     setContract(null)
-                    setFormData({ payment_type: 'por_sessao', price_session: 0 })
+                    setFormData({ payment_type: 'por_sessao', price_session: 0, internal_description: '' })
                   }} 
                   variant="outline"
                   className="flex-1"
@@ -286,6 +293,22 @@ Peço que preencha o formulário abaixo para o cadastro completo.`
                     }
                     placeholder="Ex: 120.00"
                   />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="internal_description">Descrição Interna (opcional)</Label>
+                  <Input
+                    id="internal_description"
+                    value={formData.internal_description || ''}
+                    onChange={(e) =>
+                      setFormData({ ...formData, internal_description: e.target.value })
+                    }
+                    placeholder="Ex: Maria - indicação da Ana"
+                    maxLength={255}
+                  />
+                  <p className="text-xs text-gray-500">
+                    Apenas para organização interna. O paciente não vê esta informação.
+                  </p>
                 </div>
 
                 <Button type="submit" disabled={isLoading} className="w-full gap-2">
