@@ -49,6 +49,7 @@ export default function PatientDetailsPage() {
   const [quizAssignments, setQuizAssignments] = useState<PatientQuizAssignment[]>([])
   const [isLoadingQuizzes, setIsLoadingQuizzes] = useState(false)
   const [activeTab, setActiveTab] = useState<string>("info")
+    const hasPortalAccess = Boolean(patient?.user_id)
 
     useEffect(() => {
         const loadPatient = async () => {
@@ -188,12 +189,24 @@ export default function PatientDetailsPage() {
         setIsGrantingAccess(true)
         try {
             const credentialsData = await patientService.grantPortalAccess(patientId)
-            setCredentials(credentialsData)
+            setPatient(credentialsData.patient)
+            setCredentials(credentialsData.credentials)
             showSuccessToast("Acesso criado", "Credenciais do portal enviadas para o paciente!")
         } catch (error: any) {
+            const message = error.response?.data?.message || ""
+            const alreadyHasAccess =
+                error.response?.status === 400 &&
+                typeof message === "string" &&
+                message.toLowerCase().includes("already has portal access")
+
+            if (alreadyHasAccess) {
+                showSuccessToast("Acesso já existente", "Este paciente já possui acesso ao portal.")
+                return
+            }
+
             showErrorToast(
                 "Erro ao criar acesso",
-                error.response?.data?.message || "Tente novamente mais tarde"
+                message || "Tente novamente mais tarde"
             )
         } finally {
             setIsGrantingAccess(false)
@@ -450,7 +463,7 @@ export default function PatientDetailsPage() {
                                 </CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-4 p-4 sm:p-6">
-                                {!credentials ? (
+                                {!hasPortalAccess && !credentials ? (
                                     <div className="text-center py-4">
                                         <p className="text-muted-foreground mb-4">
                                             Crie credenciais de acesso para o portal do paciente
@@ -477,10 +490,12 @@ export default function PatientDetailsPage() {
                                     <div className="space-y-4">
                                         <div className="bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg p-4">
                                             <h4 className="font-semibold text-green-800 dark:text-green-200 mb-2">
-                                                Credenciais criadas com sucesso!
+                                                {credentials ? "Credenciais criadas com sucesso!" : "Acesso ao portal já ativado"}
                                             </h4>
                                             <p className="text-sm text-green-700 dark:text-green-300">
-                                                As credenciais foram enviadas por email para o paciente.
+                                                {credentials
+                                                    ? "As credenciais foram enviadas por email para o paciente."
+                                                    : "Este paciente já possui acesso ao portal."}
                                             </p>
                                         </div>
 
@@ -489,14 +504,19 @@ export default function PatientDetailsPage() {
                                                 <Label className="text-xs sm:text-sm font-medium">Email de Acesso</Label>
                                                 <div className="flex items-center gap-2">
                                                     <Input
-                                                        value={credentials.email}
+                                                        value={credentials?.email || patient?.user?.email || patient?.email || ""}
                                                         readOnly
                                                         className="bg-muted text-xs sm:text-sm"
                                                     />
                                                     <Button
                                                         size="sm"
                                                         variant="outline"
-                                                        onClick={() => copyToClipboard(credentials.email, "Email")}
+                                                        onClick={() =>
+                                                            copyToClipboard(
+                                                                credentials?.email || patient?.user?.email || patient?.email || "",
+                                                                "Email"
+                                                            )
+                                                        }
                                                         className="flex-shrink-0"
                                                     >
                                                         {copiedField === "Email" ? (
@@ -512,14 +532,18 @@ export default function PatientDetailsPage() {
                                                 <Label className="text-xs sm:text-sm font-medium">Senha Temporária</Label>
                                                 <div className="flex items-center gap-2">
                                                     <Input
-                                                        value={credentials.password}
+                                                        value={credentials?.temporary_password || "Já definida pelo paciente"}
                                                         readOnly
                                                         className="bg-muted text-xs sm:text-sm"
                                                     />
                                                     <Button
                                                         size="sm"
                                                         variant="outline"
-                                                        onClick={() => copyToClipboard(credentials.password, "Senha")}
+                                                        onClick={() =>
+                                                            credentials?.temporary_password &&
+                                                            copyToClipboard(credentials.temporary_password, "Senha")
+                                                        }
+                                                        disabled={!credentials?.temporary_password}
                                                         className="flex-shrink-0"
                                                     >
                                                         {copiedField === "Senha" ? (
