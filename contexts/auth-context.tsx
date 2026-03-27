@@ -10,6 +10,7 @@ interface AuthContextType {
   login: (credentials: LoginCredentials) => Promise<{ success: boolean; message?: string }>
   register: (data: RegisterData) => Promise<{ success: boolean; message?: string; errors?: any }>
   logout: () => Promise<void>
+  refreshUser: () => Promise<void>
   isLoading: boolean
   isAuthenticated: boolean
 }
@@ -138,11 +139,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(false)
   }
 
+  const refreshUser = async () => {
+    const current = await authService.getCurrentUser()
+    if (current) {
+      setUser(current)
+    }
+  }
+
   const value = {
     user,
     login,
     register,
     logout,
+    refreshUser,
     isLoading,
     isAuthenticated: !!user,
   }

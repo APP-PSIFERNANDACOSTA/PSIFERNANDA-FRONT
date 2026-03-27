@@ -18,6 +18,7 @@ import {
     ChevronLeft,
     ChevronRight,
     FileText,
+    NotebookPen,
 } from "lucide-react"
 import { useEffect, useRef } from "react"
 import { useAuth } from "@/contexts/auth-context"
@@ -26,6 +27,7 @@ import { useThemeWithSession } from "@/hooks/use-theme-session"
 const navigation = [
     { name: "Início", href: "/portal", icon: Home },
     { name: "Minhas Sessões", href: "/portal/sessions", icon: Calendar },
+    { name: "Pós-terapia", href: "/portal/post-therapy", icon: NotebookPen },
     { name: "Quiz", href: "/portal/quiz", icon: Brain },
     { name: "Diário Pessoal", href: "/portal/diary", icon: Heart },
     { name: "Meus Contratos", href: "/portal/contracts", icon: FileText },

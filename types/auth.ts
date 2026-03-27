@@ -30,6 +30,14 @@ export interface RegisterData {
     crp?: string
 }
 
+export interface UpdateProfilePayload {
+    name: string
+    email: string
+    phone?: string | null
+    cpf?: string | null
+    crp?: string | null
+}
+
 export interface AuthResponse {
     success: boolean
     message?: string

@@ -1,34 +1,68 @@
 "use client"
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { Suspense, useEffect, useState } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ArrowLeft, Copy, Check, Loader2, FileText } from "lucide-react"
+import { ArrowLeft, Copy, Check, Loader2, FileText, UserPlus } from "lucide-react"
 import contractService from "@/services/contract-service"
+import patientService from "@/services/patient-service"
 import type { CreateContractData, ContractPaymentType } from "@/types/contract"
 import { CONTRACT_PAYMENT_TYPES } from "@/types/contract"
+import type { Patient } from "@/types/patient"
 import { showErrorToast, showSuccessToast } from "@/lib/toast-helpers"
+import type { Contract } from "@/types/contract"
 
-export default function CreateContractPage() {
+function CreateContractContent() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [isLoading, setIsLoading] = useState(false)
-  const [contract, setContract] = useState<any>(null)
+  const [contract, setContract] = useState<Contract | null>(null)
   const [linkCopied, setLinkCopied] = useState(false)
-  
+  const [patients, setPatients] = useState<Patient[]>([])
+  const [loadingPatients, setLoadingPatients] = useState(true)
+
   const [formData, setFormData] = useState<CreateContractData>({
-    payment_type: 'por_sessao',
+    payment_type: "por_sessao",
     price_session: 0,
-    internal_description: '',
+    internal_description: "",
   })
+
+  useEffect(() => {
+    const loadPatients = async () => {
+      setLoadingPatients(true)
+      try {
+        const res = await patientService.getAll({ status: "active", per_page: 500 })
+        setPatients(res.patients?.data ?? [])
+      } catch {
+        showErrorToast("Erro", "Não foi possível carregar a lista de pacientes.")
+      } finally {
+        setLoadingPatients(false)
+      }
+    }
+    loadPatients()
+  }, [])
+
+  useEffect(() => {
+    const raw = searchParams.get("patientId")
+    if (!raw) return
+    const id = parseInt(raw, 10)
+    if (Number.isNaN(id)) return
+    setFormData((prev) => ({ ...prev, patient_id: id }))
+  }, [searchParams])
+
+  const selectedPatientLabel =
+    formData.patient_id != null
+      ? patients.find((p) => p.id === formData.patient_id)?.name ?? `Paciente #${formData.patient_id}`
+      : null
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (formData.price_session <= 0) {
       showErrorToast("Valor inválido", "O valor da sessão deve ser maior que zero")
       return
@@ -36,12 +70,22 @@ export default function CreateContractPage() {
 
     setIsLoading(true)
     try {
-      const response = await contractService.create(formData)
+      const payload: CreateContractData = {
+        payment_type: formData.payment_type,
+        price_session: formData.price_session,
+        internal_description: formData.internal_description || undefined,
+      }
+      if (formData.patient_id != null) {
+        payload.patient_id = formData.patient_id
+      }
+      const response = await contractService.create(payload)
       if (response.success) {
         setContract(response.contract)
         showSuccessToast(
           "Contrato criado!",
-          "O contrato foi gerado com sucesso. Copie o link para enviar ao paciente."
+          formData.patient_id
+            ? "O link leva à assinatura com os dados do paciente já carregados."
+            : "O contrato foi gerado com sucesso. Copie o link para enviar ao paciente."
         )
       }
     } catch (error: any) {
@@ -56,14 +100,14 @@ export default function CreateContractPage() {
 
   const handleCopyLink = async () => {
     if (!contract) return
-    
+
     try {
       await navigator.clipboard.writeText(`${window.location.origin}/contract/${contract.token}`)
       setLinkCopied(true)
       showSuccessToast("Link copiado!", "O link do contrato foi copiado para a área de transferência")
-      
+
       setTimeout(() => setLinkCopied(false), 2000)
-    } catch (error) {
+    } catch {
       showErrorToast("Erro ao copiar", "Não foi possível copiar o link")
     }
   }
@@ -76,16 +120,24 @@ Bem-vinda(o) ao processo terapêutico!
 Sou Fernanda Gabriela Bezerra da Costa, psicóloga, CRP-08/43119, e este documento tem o objetivo de garantir clareza, transparência e segurança no nosso trabalho conjunto. Abaixo os principais pontos sobre o funcionamento das sessões, pagamentos e aspectos éticos da terapia.
 
 1. Pagamento
-- O valor acordado para as sessões é de R$ ${formData.price_session.toFixed(2).replace('.', ',')}.
+- O valor acordado para as sessões é de R$ ${formData.price_session.toFixed(2).replace(".", ",")}.
 - O pagamento `
 
-    const paymentDetails = formData.payment_type === 'por_sessao' 
-      ? 'deve ser realizado até 30 minutos antes do horário de cada sessão'
-      : formData.payment_type === 'quinzenal'
-      ? 'deve ser realizado quinzenalmente nos dias 15 e 30 de cada mês'
-      : 'deve ser feito mensalmente até o dia de cada mês que selecionar no formulário abaixo'
+    const paymentDetails =
+      formData.payment_type === "por_sessao"
+        ? "deve ser realizado até 30 minutos antes do horário de cada sessão"
+        : formData.payment_type === "quinzenal"
+          ? "deve ser realizado quinzenalmente nos dias 15 e 30 de cada mês"
+          : "deve ser feito mensalmente até o dia de cada mês que selecionar no formulário abaixo"
 
-    return baseText + paymentDetails + `.
+    const closing = formData.patient_id
+      ? "Confira seus dados abaixo e assine para formalizar a renovação/revisão deste contrato."
+      : "Peço que preencha o formulário abaixo para o cadastro completo."
+
+    return (
+      baseText +
+      paymentDetails +
+      `.
 - O pagamento é feito via Pix.
 - O não pagamento até a data combinada poderá implicar na suspensão temporária dos atendimentos até a regularização.
 
@@ -114,20 +166,25 @@ Todos os dados armazenados na plataforma são altamente criptografados e seguem 
 
 Estou à disposição para esclarecer qualquer dúvida que possa surgir.
 
-Peço que preencha o formulário abaixo para o cadastro completo.`
+${closing}`
+    )
+  }
+
+  const resetForm = () => {
+    setContract(null)
+    setFormData({
+      payment_type: "por_sessao",
+      price_session: 0,
+      internal_description: "",
+    })
   }
 
   if (contract) {
     return (
       <DashboardLayout>
         <div className="space-y-6">
-          {/* Header */}
           <div className="flex items-center gap-4">
-            <Button 
-              variant="outline" 
-              onClick={() => router.push('/dashboard/contracts')}
-              className="gap-2"
-            >
+            <Button variant="outline" onClick={() => router.push("/dashboard/contracts")} className="gap-2">
               <ArrowLeft className="h-4 w-4" />
               Voltar
             </Button>
@@ -137,7 +194,6 @@ Peço que preencha o formulário abaixo para o cadastro completo.`
             </div>
           </div>
 
-          {/* Success Card */}
           <Card className="border-green-200 bg-green-50">
             <CardHeader>
               <CardTitle className="text-green-800 flex items-center gap-2">
@@ -152,11 +208,7 @@ Peço que preencha o formulário abaixo para o cadastro completo.`
                   <code className="flex-1 p-2 bg-gray-100 rounded text-sm break-all">
                     {`${window.location.origin}/contract/${contract.token}`}
                   </code>
-                  <Button
-                    onClick={handleCopyLink}
-                    className="gap-2"
-                    variant={linkCopied ? "default" : "outline"}
-                  >
+                  <Button onClick={handleCopyLink} className="gap-2" variant={linkCopied ? "default" : "outline"}>
                     {linkCopied ? (
                       <>
                         <Check className="h-4 w-4" />
@@ -175,15 +227,25 @@ Peço que preencha o formulário abaixo para o cadastro completo.`
               <div className="bg-white p-4 rounded-lg border">
                 <h3 className="font-semibold text-gray-900 mb-2">Informações do Contrato:</h3>
                 <div className="grid grid-cols-2 gap-4 text-sm">
+                  {contract.patient && (
+                    <div className="col-span-2">
+                      <span className="font-medium text-gray-500">Paciente vinculado:</span>
+                      <p className="text-gray-900">{contract.patient.name}</p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Na assinatura, os dados vêm preenchidos e o cadastro existente é atualizado — não criamos outro
+                        paciente.
+                      </p>
+                    </div>
+                  )}
                   <div>
                     <span className="font-medium text-gray-500">Tipo de Pagamento:</span>
                     <p className="text-gray-900">
-                      {CONTRACT_PAYMENT_TYPES.find(t => t.value === contract.payment_type)?.label}
+                      {CONTRACT_PAYMENT_TYPES.find((t) => t.value === contract.payment_type)?.label}
                     </p>
                   </div>
                   <div>
                     <span className="font-medium text-gray-500">Valor da Sessão:</span>
-                    <p className="text-gray-900">R$ {Number(contract.price_session).toFixed(2).replace('.', ',')}</p>
+                    <p className="text-gray-900">R$ {Number(contract.price_session).toFixed(2).replace(".", ",")}</p>
                   </div>
                   <div>
                     <span className="font-medium text-gray-500">Status:</span>
@@ -211,17 +273,10 @@ Peço que preencha o formulário abaixo para o cadastro completo.`
               </div>
 
               <div className="flex gap-3">
-                <Button onClick={() => router.push('/dashboard/contracts')} className="flex-1">
+                <Button onClick={() => router.push("/dashboard/contracts")} className="flex-1">
                   Ver Lista de Contratos
                 </Button>
-                <Button 
-                  onClick={() => {
-                    setContract(null)
-                    setFormData({ payment_type: 'por_sessao', price_session: 0, internal_description: '' })
-                  }} 
-                  variant="outline"
-                  className="flex-1"
-                >
+                <Button onClick={resetForm} variant="outline" className="flex-1">
                   Gerar Outro Contrato
                 </Button>
               </div>
@@ -235,30 +290,63 @@ Peço que preencha o formulário abaixo para o cadastro completo.`
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        {/* Header */}
         <div className="flex items-center gap-4">
-          <Button 
-            variant="outline" 
-            onClick={() => router.push('/dashboard/contracts')}
-            className="gap-2"
-          >
+          <Button variant="outline" onClick={() => router.push("/dashboard/contracts")} className="gap-2">
             <ArrowLeft className="h-4 w-4" />
             Voltar
           </Button>
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Gerar Novo Contrato</h1>
-            <p className="text-gray-600">Configure os dados do contrato terapêutico</p>
+            <p className="text-gray-600 text-sm sm:text-base">
+              Configure o contrato. Para renovação com paciente já cadastrado, selecione-o abaixo.
+            </p>
           </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Form */}
           <Card>
             <CardHeader>
               <CardTitle>Configurações do Contrato</CardTitle>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="patient_scope">Paciente</Label>
+                  <Select
+                    value={formData.patient_id != null ? String(formData.patient_id) : "new"}
+                    onValueChange={(value) => {
+                      if (value === "new") {
+                        setFormData((prev) => ({ ...prev, patient_id: undefined }))
+                      } else {
+                        setFormData((prev) => ({ ...prev, patient_id: parseInt(value, 10) }))
+                      }
+                    }}
+                    disabled={loadingPatients}
+                  >
+                    <SelectTrigger id="patient_scope">
+                      <SelectValue placeholder="Selecione..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="new">
+                        <span className="flex items-center gap-2">
+                          <UserPlus className="h-4 w-4" />
+                          Novo paciente (preenche dados na assinatura)
+                        </span>
+                      </SelectItem>
+                      {patients.map((p) => (
+                        <SelectItem key={p.id} value={String(p.id)}>
+                          {p.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-gray-500">
+                    {formData.patient_id != null
+                      ? "O link de assinatura abrirá com dados do paciente e só atualizará o cadastro — não duplica registro."
+                      : "O paciente informará nome, e-mail e demais dados ao assinar (novo cadastro)."}
+                  </p>
+                </div>
+
                 <div className="space-y-2">
                   <Label htmlFor="payment_type">Tipo de Pagamento</Label>
                   <Select
@@ -287,10 +375,8 @@ Peço que preencha o formulário abaixo para o cadastro completo.`
                     type="number"
                     step="0.01"
                     min="0"
-                    value={formData.price_session || ''}
-                    onChange={(e) =>
-                      setFormData({ ...formData, price_session: Number(e.target.value) })
-                    }
+                    value={formData.price_session || ""}
+                    onChange={(e) => setFormData({ ...formData, price_session: Number(e.target.value) })}
                     placeholder="Ex: 120.00"
                   />
                 </div>
@@ -299,11 +385,9 @@ Peço que preencha o formulário abaixo para o cadastro completo.`
                   <Label htmlFor="internal_description">Descrição Interna (opcional)</Label>
                   <Input
                     id="internal_description"
-                    value={formData.internal_description || ''}
-                    onChange={(e) =>
-                      setFormData({ ...formData, internal_description: e.target.value })
-                    }
-                    placeholder="Ex: Maria - indicação da Ana"
+                    value={formData.internal_description || ""}
+                    onChange={(e) => setFormData({ ...formData, internal_description: e.target.value })}
+                    placeholder="Ex: Renovação 2026 — Maria"
                     maxLength={255}
                   />
                   <p className="text-xs text-gray-500">
@@ -320,7 +404,7 @@ Peço que preencha o formulário abaixo para o cadastro completo.`
                   ) : (
                     <>
                       <FileText className="h-4 w-4" />
-                      Gerar Contrato
+                      {formData.patient_id != null ? "Gerar contrato para paciente" : "Gerar Contrato"}
                     </>
                   )}
                 </Button>
@@ -328,21 +412,39 @@ Peço que preencha o formulário abaixo para o cadastro completo.`
             </CardContent>
           </Card>
 
-          {/* Preview */}
           <Card>
             <CardHeader>
               <CardTitle>Preview do Contrato</CardTitle>
+              {selectedPatientLabel && (
+                <p className="text-sm text-muted-foreground font-normal">
+                  Paciente: <strong>{selectedPatientLabel}</strong>
+                </p>
+              )}
             </CardHeader>
             <CardContent>
               <div className="bg-gray-50 p-4 rounded-lg max-h-96 overflow-y-auto">
-                <pre className="text-sm text-gray-700 whitespace-pre-wrap font-mono">
-                  {generateContractPreview()}
-                </pre>
+                <pre className="text-sm text-gray-700 whitespace-pre-wrap font-mono">{generateContractPreview()}</pre>
               </div>
             </CardContent>
           </Card>
         </div>
       </div>
     </DashboardLayout>
+  )
+}
+
+export default function CreateContractPage() {
+  return (
+    <Suspense
+      fallback={
+        <DashboardLayout>
+          <div className="flex items-center justify-center min-h-[40vh]">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        </DashboardLayout>
+      }
+    >
+      <CreateContractContent />
+    </Suspense>
   )
 }

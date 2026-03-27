@@ -1,6 +1,7 @@
 "use client"
 
 import { Bell, Search, Plus, Moon, Sun, LogOut, Menu, User } from "lucide-react"
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -99,6 +100,12 @@ export function Topbar({ onMenuClick }: TopbarProps) {
               <p className="text-xs text-muted-foreground truncate">{user?.email || ""}</p>
             </div>
             <DropdownMenuSeparator />
+            <DropdownMenuItem asChild>
+              <Link href="/dashboard/profile" className="cursor-pointer">
+                <User className="mr-2 h-4 w-4" />
+                Meu perfil
+              </Link>
+            </DropdownMenuItem>
             <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-red-600 focus:text-red-600 dark:text-red-400">
               <LogOut className="mr-2 h-4 w-4" />
               Sair

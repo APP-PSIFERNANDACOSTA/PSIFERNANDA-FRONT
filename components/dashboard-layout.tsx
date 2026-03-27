@@ -64,9 +64,13 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           onClose={handleCloseSidebar}
           onToggleCollapse={toggleCollapse}
         />
-        <div className={`flex flex-1 flex-col transition-all duration-300 ${sidebarCollapsed ? "lg:pl-20" : "lg:pl-64"}`}>
+        <div
+          className={`flex min-w-0 w-full flex-1 flex-col transition-all duration-300 ${sidebarCollapsed ? "lg:pl-20" : "lg:pl-64"}`}
+        >
           <Topbar onMenuClick={toggleSidebar} />
-          <main className="flex-1 overflow-y-auto bg-background p-4 sm:p-6">{children}</main>
+          <main className="flex-1 overflow-y-auto bg-background p-4 sm:p-6 w-full min-w-0">
+            {children}
+          </main>
         </div>
       </div>
     </ProtectedRoute>

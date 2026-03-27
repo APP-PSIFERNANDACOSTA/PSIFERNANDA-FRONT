@@ -21,6 +21,7 @@ import {
   BookOpen,
   Library,
   ClipboardList,
+  Cake,
 } from "lucide-react"
 import { useEffect, useRef, useCallback } from "react"
 import { ThemeToggle } from "@/components/theme-toggle"
@@ -28,8 +29,10 @@ import { useThemeWithSession } from "@/hooks/use-theme-session"
 
 const navigation = [
   { name: "Visão Geral", href: "/dashboard", icon: LayoutDashboard },
+  { name: "Meu perfil", href: "/dashboard/profile", icon: User },
   { name: "Agenda", href: "/dashboard/schedule", icon: Calendar },
     { name: "Pacientes", href: "/dashboard/patients", icon: Users },
+  { name: "Aniversariantes", href: "/dashboard/birthdays", icon: Cake },
   { name: "Contratos", href: "/dashboard/contracts", icon: FileText },
   // { name: "Prontuários", href: "/medical-records", icon: ClipboardList }, // Temporariamente comentado
   { name: "Diários", href: "/dashboard/diary", icon: BookOpen },

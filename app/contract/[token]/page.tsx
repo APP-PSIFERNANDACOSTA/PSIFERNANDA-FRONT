@@ -15,6 +15,7 @@ import { ScaleLoader } from "react-spinners"
 import { useColors } from "@/hooks/use-colors"
 import contractService from "@/services/contract-service"
 import type { Contract, SignContractData } from "@/types/contract"
+import type { Patient } from "@/types/patient"
 import { PAYMENT_DAY_OPTIONS } from "@/types/contract"
 import { showErrorToast, showSuccessToast } from "@/lib/toast-helpers"
 
@@ -32,6 +33,7 @@ export default function ContractSignPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isSigning, setIsSigning] = useState(false)
   const [signingStep, setSigningStep] = useState(0)
+  const [isRenewal, setIsRenewal] = useState(false)
   const { colors } = useColors()
 
   const SIGNING_STEPS = [
@@ -59,12 +61,31 @@ export default function ContractSignPage() {
     }
   }, [token])
 
+  const prefillFromPatient = (c: Contract) => {
+    const p = c.patient as Patient | undefined
+    if (!p) return
+    setIsRenewal(true)
+    const birth = p.birthdate ? String(p.birthdate).slice(0, 10) : ""
+    setFormData((prev) => ({
+      ...prev,
+      patient_name: p.name || "",
+      patient_email: p.email || "",
+      patient_phone: formatPhoneBR(p.phone || ""),
+      patient_cpf: formatCPF(p.cpf || ""),
+      patient_birthdate: birth,
+      emergency_contact: p.emergency_contact || "",
+    }))
+  }
+
   const loadContract = async () => {
     setIsLoading(true)
     try {
       const response = await contractService.getByToken(token)
       if (response.success) {
         setContract(response.contract)
+        if (response.contract.patient) {
+          prefillFromPatient(response.contract)
+        }
       } else {
         showErrorToast("Contrato não encontrado", "Este contrato não existe ou já foi processado")
         router.push('/')
@@ -109,7 +130,11 @@ export default function ContractSignPage() {
         showSuccessToast("Contrato assinado!", "Seu contrato foi assinado com sucesso")
         const elapsed = Date.now() - startedAt
         const wait = Math.max(0, MIN_LOADING_MS - elapsed) + 800
-        setTimeout(() => router.push('/contract/success'), wait)
+        setTimeout(
+          () =>
+            router.push(isRenewal ? "/contract/success?renewal=1" : "/contract/success"),
+          wait
+        )
       }
     } catch (error: any) {
       if (stepInterval) clearInterval(stepInterval)
@@ -302,7 +327,15 @@ export default function ContractSignPage() {
           {/* Sign Form */}
           <Card>
             <CardHeader className="p-4 sm:p-6">
-              <CardTitle className="text-lg sm:text-xl">Assinar Contrato</CardTitle>
+              <CardTitle className="text-lg sm:text-xl">
+                {isRenewal ? "Renovar / revisar contrato" : "Assinar Contrato"}
+              </CardTitle>
+              {isRenewal && (
+                <div className="mt-3 rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm text-foreground">
+                  Os dados abaixo foram carregados para você conferir. Ao assinar, apenas atualizamos seu cadastro
+                  caso necessário e atribuímos o novo contrato.
+                </div>
+              )}
               <div className="bg-blue-50 p-3 rounded-lg mt-3">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-2 text-xs sm:text-sm">
                   <div>

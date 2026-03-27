@@ -6,6 +6,8 @@ import type {
   PatientsResponse,
   PatientResponse,
   GrantAccessResponse,
+  UpcomingBirthdaysResponse,
+  UpdatePortalPasswordPayload,
 } from "@/types/patient";
 
 class PatientService {
@@ -24,6 +26,15 @@ class PatientService {
   async getById(id: number): Promise<Patient> {
     const response = await apiClient.get<PatientResponse>(`/patients/${id}`);
     return response.patient;
+  }
+
+  /** Aniversários dos pacientes nos próximos N dias (pacientes ativos com data de nascimento) */
+  async getUpcomingBirthdays(days: number = 60): Promise<UpcomingBirthdaysResponse> {
+    const response = await apiClient.get<UpcomingBirthdaysResponse>(
+      "/patients/birthdays/upcoming",
+      { params: { days } }
+    );
+    return response;
   }
 
   async create(data: CreatePatientData): Promise<Patient> {
@@ -48,6 +59,17 @@ class PatientService {
       `/patients/${id}/grant-access`
     );
     return response;
+  }
+
+  /** Psicólogo define nova senha do portal do paciente (sem senha atual do paciente) */
+  async updatePortalPassword(
+    id: number,
+    data: UpdatePortalPasswordPayload
+  ): Promise<{ success: boolean; message: string }> {
+    return apiClient.patch<{ success: boolean; message: string }>(
+      `/patients/${id}/portal-password`,
+      data
+    );
   }
 
   // Patient portal methods (for patients to access their own data)

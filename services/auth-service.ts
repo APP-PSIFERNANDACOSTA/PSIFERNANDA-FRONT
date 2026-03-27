@@ -1,5 +1,5 @@
 import apiClient from '@/lib/api-client'
-import { AuthResponse, LoginCredentials, RegisterData, User } from '@/types/auth'
+import { AuthResponse, LoginCredentials, RegisterData, UpdateProfilePayload, User } from '@/types/auth'
 
 class AuthService {
     /**
@@ -66,6 +66,10 @@ class AuthService {
             console.log('🔑 Token:', this.getToken() ? 'Presente' : 'Ausente')
             const response = await apiClient.get<{ success: boolean; user: User }>('/auth/me')
             console.log('✅ Usuário atual verificado:', response.user)
+            const token = this.getToken()
+            if (response.user && token) {
+                this.saveAuthData(token, response.user)
+            }
             return response.user
         } catch (error: any) {
             console.error('❌ Erro ao verificar usuário atual:', error)
@@ -126,6 +130,33 @@ class AuthService {
      */
     isAuthenticated(): boolean {
         return !!this.getToken()
+    }
+
+    /**
+     * Atualiza nome, email, telefone, CPF e CRP do usuário autenticado
+     */
+    async updateProfile(
+        data: UpdateProfilePayload
+    ): Promise<{ success: boolean; user?: User; message?: string; errors?: Record<string, string[]> }> {
+        try {
+            const response = await apiClient.put<{ success: boolean; user: User; message?: string }>(
+                '/auth/profile',
+                data
+            )
+            if (response.success && response.user) {
+                const token = this.getToken()
+                if (token) {
+                    this.saveAuthData(token, response.user)
+                }
+            }
+            return { success: true, user: response.user, message: response.message }
+        } catch (error: any) {
+            return {
+                success: false,
+                message: error.response?.data?.message || 'Não foi possível atualizar o perfil',
+                errors: error.response?.data?.errors,
+            }
+        }
     }
 }
 

@@ -55,9 +55,9 @@ export function PortalDashboardLayout({ children }: { children: React.ReactNode 
                 />
                 <div className={`flex flex-1 flex-col transition-all duration-300 ${sidebarCollapsed ? "lg:pl-20" : "lg:pl-64"}`}>
                     <PatientHeader onMenuClick={toggleSidebar} />
-                    <main className="flex-1 overflow-y-auto bg-background px-5 py-6 sm:p-6 lg:pb-6" style={{ paddingBottom: 'calc(92px + 24px + env(safe-area-inset-bottom, 0px))' }}>
-                        <div className="flex min-h-full flex-col">
-                            <div className="flex-1">{children}</div>
+                    <main className="flex-1 overflow-y-auto overflow-x-hidden bg-background px-4 py-5 sm:px-6 sm:py-6 lg:px-8 lg:py-8 lg:pb-6 w-full min-w-0" style={{ paddingBottom: 'calc(92px + 24px + env(safe-area-inset-bottom, 0px))' }}>
+                        <div className="flex min-h-full flex-col w-full min-w-0">
+                            <div className="flex-1 w-full min-w-0">{children}</div>
                             <footer className="mt-8 border-t pt-4 text-center sm:text-right text-xs text-muted-foreground lg:block hidden">
                                 © {new Date().getFullYear()} Psicóloga Fernanda Costa. Todos os direitos reservados.
                             </footer>

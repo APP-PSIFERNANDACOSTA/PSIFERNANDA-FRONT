@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { Calendar, Clock, Video, Heart, Brain, CheckCircle2, AlertCircle, TrendingUp, Sparkles, Loader2, User, BookOpen, FileText, DollarSign, Library } from "lucide-react"
+import { Calendar, Clock, Video, Heart, Brain, CheckCircle2, AlertCircle, TrendingUp, Sparkles, Loader2, User, BookOpen, FileText, DollarSign, Library, NotebookPen } from "lucide-react"
 import { NotificationPromptBanner } from "@/components/notification-prompt-banner"
 import { useAuth } from "@/contexts/auth-context"
 import Link from "next/link"
@@ -21,6 +21,25 @@ import type { Message } from "@/types/message"
 import diaryService from "@/services/diary-service"
 import exerciseService from "@/services/exercise-service"
 import quizService from "@/services/quiz-service"
+import patientNoteService from "@/services/patient-note-service"
+import type { PatientNote } from "@/types/patient-note"
+import { getPatientNoteDisplayTitle } from "@/components/patient-note-detail-content"
+
+function getPostTherapySnippet(note: PatientNote): string | null {
+  const b = note.body_structured
+  if (!b) return null
+  const parts = [
+    b.discussion_summary,
+    b.phrase_to_remember,
+    b.daily_application,
+    b.extra_notes,
+  ]
+    .map((s) => s?.trim())
+    .filter(Boolean) as string[]
+  const text = parts[0]
+  if (!text) return null
+  return text.length > 160 ? `${text.slice(0, 160).trim()}…` : text
+}
 
 export default function PatientPortalPage() {
   const { user } = useAuth()
@@ -32,11 +51,14 @@ export default function PatientPortalPage() {
   const [exercisesCount, setExercisesCount] = useState(0)
   const [quizzesCount, setQuizzesCount] = useState(0)
   const [isLoadingStats, setIsLoadingStats] = useState(true)
+  const [latestPostTherapy, setLatestPostTherapy] = useState<PatientNote | null>(null)
+  const [isLoadingPostTherapy, setIsLoadingPostTherapy] = useState(true)
 
   const refetchAll = () => {
     loadNextSession()
     loadLatestMessage()
     loadStats()
+    loadLatestPostTherapy()
   }
   useAutoRefresh(refetchAll, { intervalMs: 60000 })
 
@@ -44,7 +66,24 @@ export default function PatientPortalPage() {
     loadNextSession()
     loadLatestMessage()
     loadStats()
+    loadLatestPostTherapy()
   }, [])
+
+  const loadLatestPostTherapy = async () => {
+    try {
+      setIsLoadingPostTherapy(true)
+      const { data } = await patientNoteService.listMyPortalPostTherapy({
+        page: 1,
+        per_page: 1,
+      })
+      setLatestPostTherapy(data[0] ?? null)
+    } catch (error) {
+      console.error("Erro ao carregar pós-terapia:", error)
+      setLatestPostTherapy(null)
+    } finally {
+      setIsLoadingPostTherapy(false)
+    }
+  }
 
   const loadNextSession = async () => {
     try {
@@ -273,6 +312,97 @@ export default function PatientPortalPage() {
               <Link href="/portal/sessions">
                 <Button variant="outline" size="sm">
                   Ver Histórico de Sessões
+                </Button>
+              </Link>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Pós terapia da última sessão */}
+      <Card className="group transition-colors hover:bg-primary/5">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 transition-colors group-hover:bg-primary">
+              <NotebookPen className="h-5 w-5 text-primary transition-colors group-hover:text-white" />
+            </span>
+            Pós terapia da última sessão
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {isLoadingPostTherapy ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+              <span className="ml-2 text-sm text-muted-foreground">Carregando…</span>
+            </div>
+          ) : latestPostTherapy ? (
+            <div className="space-y-4">
+              <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
+                <div className="space-y-2 flex-1 min-w-0">
+                  <Badge variant="secondary" className="font-normal">
+                    Mais recente
+                  </Badge>
+                  <div className="space-y-1.5">
+                    <p className="font-medium break-words">{getPatientNoteDisplayTitle(latestPostTherapy)}</p>
+                    {latestPostTherapy.session && (
+                      <div className="space-y-1.5">
+                        <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                          <Calendar className="h-4 w-4 shrink-0" />
+                          <span className="block sm:hidden">
+                            {formatSessionDate(latestPostTherapy.session.session_date, true)}
+                          </span>
+                          <span className="hidden sm:block">
+                            {formatSessionDate(latestPostTherapy.session.session_date)}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                          <Clock className="h-4 w-4 shrink-0" />
+                          <span>
+                            {formatSessionTime(
+                              latestPostTherapy.session.session_date,
+                              latestPostTherapy.session.duration
+                            )}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <Link href={`/portal/post-therapy/${latestPostTherapy.id}`} className="w-full sm:w-auto shrink-0">
+                  <Button variant="outline" className="gap-2 w-full sm:w-auto min-h-[44px]">
+                    Ver
+                  </Button>
+                </Link>
+              </div>
+              {getPostTherapySnippet(latestPostTherapy) ? (
+                <div className="rounded-lg bg-muted/80 dark:bg-muted/40 p-3 text-sm border border-border/60">
+                  <p className="font-medium text-foreground">Trecho da pós-terapia:</p>
+                  <p className="mt-1 text-muted-foreground leading-relaxed">
+                    {getPostTherapySnippet(latestPostTherapy)}
+                  </p>
+                </div>
+              ) : (
+                <div className="rounded-lg bg-muted/80 dark:bg-muted/40 p-3 text-sm border border-border/60">
+                  <p className="font-medium text-foreground">Nota da profissional:</p>
+                  <p className="mt-1 text-muted-foreground leading-relaxed">
+                    Toque em <span className="font-medium text-foreground">Ver</span> para ler o registro completo desta
+                    sessão.
+                  </p>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-8 text-center">
+              <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10 mb-3 transition-colors group-hover:bg-primary">
+                <NotebookPen className="h-8 w-8 text-primary opacity-80 transition-colors group-hover:text-white" />
+              </div>
+              <p className="font-medium text-foreground mb-1">Ainda não há pós-terapia</p>
+              <p className="text-sm text-muted-foreground mb-4 max-w-sm">
+                Quando houver um registro após uma sessão, ele aparecerá aqui.
+              </p>
+              <Link href="/portal/post-therapy">
+                <Button variant="outline" size="sm">
+                  Ver área Pós-terapia
                 </Button>
               </Link>
             </div>

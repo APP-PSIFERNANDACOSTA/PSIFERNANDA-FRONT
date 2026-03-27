@@ -26,6 +26,8 @@ export interface CreateContractData {
   payment_type: ContractPaymentType;
   price_session: number;
   internal_description?: string;
+  /** Se informado, o contrato é para um paciente já cadastrado (renovação — não cria novo cadastro na assinatura). */
+  patient_id?: number;
 }
 
 export interface SignContractData {
@@ -44,6 +46,8 @@ export interface ContractResponse {
   contract: Contract;
   link?: string;
   message?: string;
+  /** Presente em GET público por token quando o contrato já está vinculado a um paciente */
+  is_existing_patient?: boolean;
 }
 
 export interface ContractsResponse {

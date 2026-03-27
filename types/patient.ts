@@ -74,6 +74,22 @@ export interface PortalAccessCredentials {
   message: string;
 }
 
+export interface UpcomingBirthday {
+  patient_id: number;
+  name: string;
+  email: string;
+  phone: string;
+  birthdate: string;
+  next_birthday: string;
+  days_until: number;
+  age_turning: number;
+}
+
+export interface UpcomingBirthdaysResponse {
+  success: boolean;
+  birthdays: UpcomingBirthday[];
+}
+
 export interface PatientsResponse {
   success: boolean;
   patients: {
@@ -98,4 +114,9 @@ export interface GrantAccessResponse {
   message: string;
   patient: Patient;
   credentials: PortalAccessCredentials;
+}
+
+export interface UpdatePortalPasswordPayload {
+  password: string;
+  password_confirmation: string;
 }

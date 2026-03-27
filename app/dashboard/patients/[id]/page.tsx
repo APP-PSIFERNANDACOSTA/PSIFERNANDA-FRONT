@@ -7,9 +7,9 @@ import { Badge } from "@/components/ui/badge"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { ArrowLeft, Edit, Phone, Mail, Calendar, MapPin, Shield, FileText, Send, Loader2, Copy, Check, BookOpen, DollarSign, File } from "lucide-react"
+import { ArrowLeft, Edit, Phone, Mail, Calendar, MapPin, Shield, FileText, Send, Loader2, Copy, Check, BookOpen, DollarSign, File, NotebookPen, Lock } from "lucide-react"
 import Link from "next/link"
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { useParams, useRouter } from "next/navigation"
 import patientService from "@/services/patient-service"
 import diaryService from "@/services/diary-service"
@@ -18,6 +18,8 @@ import { DiaryEntryCard } from "@/components/diary-entry-card"
 import { DiaryFilterDropdown } from "@/components/diary-filter-dropdown"
 import { WeeklyAnalysisDropdown } from "@/components/weekly-analysis-dropdown"
 import { PatientSessions } from "@/components/patient-sessions"
+import { PatientNotes } from "@/components/patient-notes"
+import { PatientTabSync } from "@/components/patient-tab-sync"
 // import { PatientRecords } from "@/components/patient-records" // Temporariamente comentado
 import { quizAssignmentService } from "@/services/quiz-assignment-service"
 import type { Patient, PortalAccessCredentials } from "@/types/patient"
@@ -39,6 +41,11 @@ export default function PatientDetailsPage() {
     const [isGrantingAccess, setIsGrantingAccess] = useState(false)
     const [credentials, setCredentials] = useState<PortalAccessCredentials | null>(null)
     const [copiedField, setCopiedField] = useState<string | null>(null)
+    const [portalPassword, setPortalPassword] = useState({
+        password: "",
+        password_confirmation: "",
+    })
+    const [isUpdatingPortalPassword, setIsUpdatingPortalPassword] = useState(false)
   const [diaryEntries, setDiaryEntries] = useState<DiaryEntry[]>([])
   const [isLoadingDiary, setIsLoadingDiary] = useState(false)
   const [diaryFilters, setDiaryFilters] = useState<DiaryFilters>({})
@@ -224,6 +231,40 @@ export default function PatientDetailsPage() {
         }
     }
 
+    const handleUpdatePortalPassword = async (e: React.FormEvent) => {
+        e.preventDefault()
+        if (!patientId || !hasPortalAccess) return
+
+        if (portalPassword.password !== portalPassword.password_confirmation) {
+            showErrorToast("Senhas", "A confirmação precisa ser igual à nova senha.")
+            return
+        }
+        if (portalPassword.password.length < 8) {
+            showErrorToast("Senha", "A senha deve ter no mínimo 8 caracteres.")
+            return
+        }
+
+        setIsUpdatingPortalPassword(true)
+        try {
+            await patientService.updatePortalPassword(patientId, {
+                password: portalPassword.password,
+                password_confirmation: portalPassword.password_confirmation,
+            })
+            setPortalPassword({ password: "", password_confirmation: "" })
+            showSuccessToast("Senha atualizada", "A nova senha do portal foi salva. Informe o paciente com segurança.")
+        } catch (error: unknown) {
+            const err = error as { response?: { data?: { message?: string; errors?: { password?: string[] } } } }
+            const first = err.response?.data?.errors?.password?.[0]
+            const msg = err.response?.data?.message
+            showErrorToast(
+                "Não foi possível alterar a senha",
+                first || (typeof msg === "string" ? msg : "Tente novamente.")
+            )
+        } finally {
+            setIsUpdatingPortalPassword(false)
+        }
+    }
+
     if (isLoading) {
         return (
             <DashboardLayout>
@@ -252,6 +293,9 @@ export default function PatientDetailsPage() {
     return (
         <DashboardLayout>
             <div className="space-y-6">
+                <Suspense fallback={null}>
+                    <PatientTabSync setTab={setActiveTab} />
+                </Suspense>
                 {/* Header */}
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div className="flex items-center gap-2 sm:gap-4 min-w-0">
@@ -300,6 +344,11 @@ export default function PatientDetailsPage() {
                             <TabsTrigger value="sessions" className="gap-1 sm:gap-2 text-xs sm:text-sm whitespace-nowrap">
                                 <Calendar className="h-3 w-3 sm:h-4 sm:w-4" />
                                 Sessões
+                            </TabsTrigger>
+                            <TabsTrigger value="notes" className="gap-1 sm:gap-2 text-xs sm:text-sm whitespace-nowrap">
+                                <NotebookPen className="h-3 w-3 sm:h-4 sm:w-4" />
+                                <span className="hidden sm:inline">Anotações</span>
+                                <span className="sm:hidden">Notas</span>
                             </TabsTrigger>
                             {/* Temporariamente comentado
                             <TabsTrigger value="records" className="gap-1 sm:gap-2 text-xs sm:text-sm whitespace-nowrap">
@@ -561,6 +610,81 @@ export default function PatientDetailsPage() {
                                                 <strong>Importante:</strong> Oriente o paciente a alterar a senha no primeiro acesso ao portal.
                                             </p>
                                         </div>
+
+                                        {hasPortalAccess && (
+                                            <div className="space-y-3 pt-2 border-t border-border">
+                                                <div className="flex items-center gap-2 text-sm font-medium">
+                                                    <Lock className="h-4 w-4 shrink-0" />
+                                                    Nova senha do portal (paciente)
+                                                </div>
+                                                <p className="text-xs text-muted-foreground">
+                                                    Defina uma nova senha para o login do paciente no portal. Informe-o por um canal seguro
+                                                    (ex.: presencialmente).
+                                                </p>
+                                                <form
+                                                    onSubmit={handleUpdatePortalPassword}
+                                                    className="space-y-3 max-w-md"
+                                                >
+                                                    <div className="space-y-2">
+                                                        <Label htmlFor="portal-new-password" className="text-xs sm:text-sm">
+                                                            Nova senha
+                                                        </Label>
+                                                        <Input
+                                                            id="portal-new-password"
+                                                            type="password"
+                                                            autoComplete="new-password"
+                                                            value={portalPassword.password}
+                                                            onChange={(e) =>
+                                                                setPortalPassword((p) => ({
+                                                                    ...p,
+                                                                    password: e.target.value,
+                                                                }))
+                                                            }
+                                                            className="text-xs sm:text-sm"
+                                                        />
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <Label
+                                                            htmlFor="portal-confirm-password"
+                                                            className="text-xs sm:text-sm"
+                                                        >
+                                                            Confirmar nova senha
+                                                        </Label>
+                                                        <Input
+                                                            id="portal-confirm-password"
+                                                            type="password"
+                                                            autoComplete="new-password"
+                                                            value={portalPassword.password_confirmation}
+                                                            onChange={(e) =>
+                                                                setPortalPassword((p) => ({
+                                                                    ...p,
+                                                                    password_confirmation: e.target.value,
+                                                                }))
+                                                            }
+                                                            className="text-xs sm:text-sm"
+                                                        />
+                                                    </div>
+                                                    <Button
+                                                        type="submit"
+                                                        variant="secondary"
+                                                        disabled={isUpdatingPortalPassword}
+                                                        className="gap-2"
+                                                    >
+                                                        {isUpdatingPortalPassword ? (
+                                                            <>
+                                                                <Loader2 className="h-4 w-4 animate-spin" />
+                                                                Salvando...
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <Lock className="h-4 w-4" />
+                                                                Salvar nova senha
+                                                            </>
+                                                        )}
+                                                    </Button>
+                                                </form>
+                                            </div>
+                                        )}
                                     </div>
                                 )}
                             </CardContent>
@@ -642,13 +766,32 @@ export default function PatientDetailsPage() {
                         )}
                     </TabsContent>
 
+                    {/* Anotações Tab */}
+                    <TabsContent value="notes" className="space-y-4 sm:space-y-6 mt-4 sm:mt-6">
+                        <PatientNotes patientId={patientId} />
+                    </TabsContent>
+
                     {/* Contratos Tab */}
                     <TabsContent value="contracts" className="space-y-4 sm:space-y-6 mt-4 sm:mt-6">
-                        <div>
-                            <h3 className="text-base sm:text-lg font-semibold">Contratos do Paciente</h3>
-                            <p className="text-xs sm:text-sm text-gray-500">
-                                Histórico de contratos assinados por {patient?.name}
-                            </p>
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                            <div>
+                                <h3 className="text-base sm:text-lg font-semibold">Contratos do Paciente</h3>
+                                <p className="text-xs sm:text-sm text-gray-500">
+                                    Histórico de contratos assinados por {patient?.name}
+                                </p>
+                            </div>
+                            <Button
+                                type="button"
+                                variant="default"
+                                size="sm"
+                                className="shrink-0 gap-2 w-full sm:w-auto"
+                                onClick={() =>
+                                    router.push(`/dashboard/contracts/create?patientId=${patientId}`)
+                                }
+                            >
+                                <FileText className="h-4 w-4" />
+                                Novo contrato para este paciente
+                            </Button>
                         </div>
 
                         {isLoadingContracts ? (

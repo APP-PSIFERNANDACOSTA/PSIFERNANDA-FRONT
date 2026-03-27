@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label"
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, User, CheckCircle2, CalendarClock, Trash2, AlertCircle, X, Save, Video, ExternalLink } from "lucide-react"
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, startOfWeek, endOfWeek } from "date-fns"
 import { ptBR } from "date-fns/locale"
-import type { Session } from "@/types/session"
+import type { Session, SessionStatus } from "@/types/session"
 import { SESSION_STATUS_LABELS, SESSION_STATUS_COLORS } from "@/types/session"
 import type { GoogleCalendarEvent } from "@/services/google-oauth-service"
 
@@ -54,6 +54,7 @@ export function CalendarView({ onSessionClick, googleEvents = [], onMonthChange 
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isGoogleEventModalOpen, setIsGoogleEventModalOpen] = useState(false)
   const [isActioning, setIsActioning] = useState(false)
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false)
   const [selectedDay, setSelectedDay] = useState<Date | null>(null)
   const [showTodayList, setShowTodayList] = useState(false)
   const [viewMode, setViewMode] = useState<'calendar' | 'list'>('calendar')
@@ -393,6 +394,7 @@ export function CalendarView({ onSessionClick, googleEvents = [], onMonthChange 
           setRescheduleDate("")
           setRescheduleTime("")
           setRescheduleDuration(null)
+          setIsUpdatingStatus(false)
         }
       }}>
         <DialogContent className="max-w-2xl">
@@ -401,10 +403,51 @@ export function CalendarView({ onSessionClick, googleEvents = [], onMonthChange 
           </DialogHeader>
           {selectedSession && (
             <div className="space-y-4">
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <Badge className={SESSION_STATUS_COLORS[selectedSession.status]}>
                   {SESSION_STATUS_LABELS[selectedSession.status]}
                 </Badge>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="calendar-session-status">Alterar status</Label>
+                <select
+                  id="calendar-session-status"
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  value={selectedSession.status}
+                  disabled={isUpdatingStatus || isActioning}
+                  onChange={async (e) => {
+                    const v = e.target.value as SessionStatus
+                    if (v === selectedSession.status) return
+                    setIsUpdatingStatus(true)
+                    try {
+                      const updated = await sessionService.updateSession(
+                        selectedSession.patient_id,
+                        selectedSession.id,
+                        { status: v }
+                      )
+                      setSelectedSession(updated)
+                      await loadSessionsForCurrentMonth()
+                      showSuccessToast("Status atualizado", "O status da sessão foi alterado.")
+                    } catch (error: any) {
+                      showErrorToast(
+                        "Erro ao atualizar status",
+                        error.response?.data?.message || "Tente novamente mais tarde"
+                      )
+                    } finally {
+                      setIsUpdatingStatus(false)
+                    }
+                  }}
+                >
+                  <option value="scheduled">Agendada</option>
+                  <option value="rescheduled">Remarcada</option>
+                  <option value="completed">Realizada</option>
+                  <option value="no_show">Falta</option>
+                  <option value="cancelled">Cancelada</option>
+                </select>
+                <p className="text-xs text-muted-foreground">
+                  Inclui sessões já finalizadas: você pode corrigir o status quando precisar.
+                </p>
               </div>
               
               <div className="space-y-3">

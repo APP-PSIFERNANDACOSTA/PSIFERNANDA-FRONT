@@ -10,16 +10,19 @@ import { Calendar, Plus, Trash2, Edit, Clock, CheckCircle2, CalendarClock, Alert
 import { useRouter } from "next/navigation"
 import sessionService from "@/services/session-service"
 import sessionReportService from "@/services/session-report-service"
-import type { Session, CreateSessionData } from "@/types/session"
+import type { Session, CreateSessionData, SessionStatus } from "@/types/session"
 import { SESSION_STATUS_LABELS, SESSION_STATUS_COLORS } from "@/types/session"
 import { showSuccessToast, showErrorToast } from "@/lib/toast-helpers"
 import { Loader2 } from "lucide-react"
+import { addMonths } from "date-fns"
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+
+type RecurrenceType = "weekly" | "biweekly" | "monthly"
 
 interface PatientSessionsProps {
   patientId: number
@@ -54,7 +57,9 @@ export function PatientSessions({ patientId, patientName, priceSession }: Patien
   const [sessionDates, setSessionDates] = useState<string[]>([''])
   const [sessionTimes, setSessionTimes] = useState<string[]>([''])
   const [isRecurring, setIsRecurring] = useState(false)
-  const [recurringWeeks, setRecurringWeeks] = useState(4)
+  const [recurrenceType, setRecurrenceType] = useState<RecurrenceType>("weekly")
+  const [recurrenceCount, setRecurrenceCount] = useState(4)
+  const [updatingStatusId, setUpdatingStatusId] = useState<number | null>(null)
 
   useEffect(() => {
     loadSessions()
@@ -184,30 +189,38 @@ export function PatientSessions({ patientId, patientName, priceSession }: Patien
 
       let sessionsToSend = [...sessionsToCreate]
 
-      // Se recorrente estiver marcado, criar sessões semanais adicionais
+      // Recorrência: semanal (7 dias), quinzenal (15 dias) ou mensal
       if (isRecurring && sessionsToCreate.length > 0) {
         const baseSession = sessionsToCreate[0]
         if (baseSession.session_date) {
           const baseDate = new Date(baseSession.session_date)
-          
-          // Criar sessões para as próximas semanas
-          for (let week = 1; week < recurringWeeks; week++) {
-            const nextDate = new Date(baseDate)
-            nextDate.setDate(nextDate.getDate() + (week * 7))
-            
-            // Formatar para datetime-local
-            const year = nextDate.getFullYear()
-            const month = String(nextDate.getMonth() + 1).padStart(2, '0')
-            const day = String(nextDate.getDate()).padStart(2, '0')
-            const hours = String(nextDate.getHours()).padStart(2, '0')
-            const minutes = String(nextDate.getMinutes()).padStart(2, '0')
-            const formattedDate = `${year}-${month}-${day}T${hours}:${minutes}`
-            
+
+          const formatDateTimeLocal = (d: Date) => {
+            const year = d.getFullYear()
+            const month = String(d.getMonth() + 1).padStart(2, "0")
+            const day = String(d.getDate()).padStart(2, "0")
+            const hours = String(d.getHours()).padStart(2, "0")
+            const minutes = String(d.getMinutes()).padStart(2, "0")
+            return `${year}-${month}-${day}T${hours}:${minutes}`
+          }
+
+          for (let i = 1; i < recurrenceCount; i++) {
+            let nextDate: Date
+            if (recurrenceType === "weekly") {
+              nextDate = new Date(baseDate)
+              nextDate.setDate(nextDate.getDate() + i * 7)
+            } else if (recurrenceType === "biweekly") {
+              nextDate = new Date(baseDate)
+              nextDate.setDate(nextDate.getDate() + i * 15)
+            } else {
+              nextDate = addMonths(baseDate, i)
+            }
+
             sessionsToSend.push({
-              session_date: formattedDate,
+              session_date: formatDateTimeLocal(nextDate),
               duration: baseSession.duration || null,
               notes: baseSession.notes || null,
-              status: baseSession.status || 'scheduled',
+              status: baseSession.status || "scheduled",
             })
           }
         }
@@ -217,9 +230,15 @@ export function PatientSessions({ patientId, patientName, priceSession }: Patien
         sessions: sessionsToSend
       })
 
+      const recurrenceLabel =
+        recurrenceType === "weekly"
+          ? "semanal"
+          : recurrenceType === "biweekly"
+            ? "quinzenal (15 dias)"
+            : "mensal"
       showSuccessToast(
         "Sessões criadas",
-        `${sessionsToSend.length} sessão(ões) criada(s) com sucesso${isRecurring ? ` (${recurringWeeks} semanas recorrentes)` : ''}`
+        `${sessionsToSend.length} sessão(ões) criada(s) com sucesso${isRecurring ? ` (recorrência ${recurrenceLabel})` : ""}`
       )
       
       // Resetar formulário
@@ -231,7 +250,8 @@ export function PatientSessions({ patientId, patientName, priceSession }: Patien
       setSessionDates([''])
       setSessionTimes([''])
       setIsRecurring(false)
-      setRecurringWeeks(4)
+      setRecurrenceType("weekly")
+      setRecurrenceCount(4)
       setShowForm(false)
       loadSessions()
     } catch (error: any) {
@@ -241,6 +261,25 @@ export function PatientSessions({ patientId, patientName, priceSession }: Patien
       )
     } finally {
       setIsCreating(false)
+    }
+  }
+
+  const handleSessionStatusChange = async (sessionId: number, newStatus: SessionStatus) => {
+    const current = sessions.find((s) => s.id === sessionId)
+    if (!current || current.status === newStatus) return
+
+    setUpdatingStatusId(sessionId)
+    try {
+      await sessionService.updateSession(patientId, sessionId, { status: newStatus })
+      showSuccessToast("Status atualizado", "O status da sessão foi alterado.")
+      await loadSessions()
+    } catch (error: any) {
+      showErrorToast(
+        "Erro ao atualizar status",
+        error.response?.data?.message || "Tente novamente mais tarde"
+      )
+    } finally {
+      setUpdatingStatusId(null)
     }
   }
 
@@ -495,7 +534,7 @@ export function PatientSessions({ patientId, patientName, priceSession }: Patien
                 </Card>
               ))}
 
-              {/* Opção de Recorrência Semanal */}
+              {/* Recorrência: semanal, quinzenal ou mensal */}
               {sessionsToCreate.length === 1 && (
                 <Card className="p-4 bg-purple-50 border-purple-200">
                   <div className="space-y-4">
@@ -508,30 +547,82 @@ export function PatientSessions({ patientId, patientName, priceSession }: Patien
                         className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
                       />
                       <Label htmlFor="isRecurring" className="font-medium cursor-pointer">
-                        📅 Sessão recorrente semanal (mesmo dia e horário toda semana)
+                        📅 Sessão recorrente (mesmo horário em intervalos regulares)
                       </Label>
                     </div>
-                    
+
                     {isRecurring && (
-                      <div className="space-y-2 pl-7">
-                        <Label htmlFor="recurringWeeks">Quantas semanas? *</Label>
-                        <select
-                          id="recurringWeeks"
-                          value={recurringWeeks}
-                          onChange={(e) => setRecurringWeeks(parseInt(e.target.value))}
-                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                          required
-                        >
-                          <option value="4">4 semanas (1 mês)</option>
-                          <option value="8">8 semanas (2 meses)</option>
-                          <option value="12">12 semanas (3 meses)</option>
-                          <option value="16">16 semanas (4 meses)</option>
-                          <option value="24">24 semanas (6 meses)</option>
-                          <option value="52">52 semanas (1 ano)</option>
-                        </select>
-                        <p className="text-xs text-muted-foreground">
-                          Serão criadas {recurringWeeks} sessões no mesmo dia e horário, uma por semana
-                        </p>
+                      <div className="space-y-3 pl-7">
+                        <div className="space-y-2">
+                          <Label htmlFor="recurrenceType">Frequência *</Label>
+                          <select
+                            id="recurrenceType"
+                            value={recurrenceType}
+                            onChange={(e) => {
+                              const t = e.target.value as RecurrenceType
+                              setRecurrenceType(t)
+                              if (t === "weekly") setRecurrenceCount(4)
+                              else if (t === "biweekly") setRecurrenceCount(4)
+                              else setRecurrenceCount(6)
+                            }}
+                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            <option value="weekly">Semanal (a cada 7 dias)</option>
+                            <option value="biweekly">Quinzenal (a cada 15 dias)</option>
+                            <option value="monthly">Mensal (mesmo dia do mês)</option>
+                          </select>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="recurrenceCount">Quantas sessões no total? *</Label>
+                          <select
+                            id="recurrenceCount"
+                            value={recurrenceCount}
+                            onChange={(e) => setRecurrenceCount(parseInt(e.target.value, 10))}
+                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                            required
+                          >
+                            {recurrenceType === "weekly" && (
+                              <>
+                                <option value="2">2 sessões</option>
+                                <option value="4">4 sessões</option>
+                                <option value="8">8 sessões</option>
+                                <option value="12">12 sessões</option>
+                                <option value="16">16 sessões</option>
+                                <option value="24">24 sessões</option>
+                                <option value="52">52 sessões (1 ano)</option>
+                              </>
+                            )}
+                            {recurrenceType === "biweekly" && (
+                              <>
+                                <option value="2">2 sessões</option>
+                                <option value="3">3 sessões</option>
+                                <option value="4">4 sessões</option>
+                                <option value="6">6 sessões</option>
+                                <option value="8">8 sessões</option>
+                                <option value="12">12 sessões</option>
+                              </>
+                            )}
+                            {recurrenceType === "monthly" && (
+                              <>
+                                <option value="2">2 sessões</option>
+                                <option value="3">3 sessões</option>
+                                <option value="4">4 sessões</option>
+                                <option value="6">6 sessões</option>
+                                <option value="12">12 sessões (1 ano)</option>
+                                <option value="24">24 sessões (2 anos)</option>
+                              </>
+                            )}
+                          </select>
+                          <p className="text-xs text-muted-foreground">
+                            {recurrenceType === "weekly" &&
+                              `Incluindo a primeira data: ${recurrenceCount} sessões, uma a cada 7 dias.`}
+                            {recurrenceType === "biweekly" &&
+                              `Incluindo a primeira data: ${recurrenceCount} sessões, uma a cada 15 dias.`}
+                            {recurrenceType === "monthly" &&
+                              `Incluindo a primeira data: ${recurrenceCount} sessões, espaçadas de um mês para o outro (mesmo horário).`}
+                          </p>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -613,6 +704,32 @@ export function PatientSessions({ patientId, patientName, priceSession }: Patien
                     <p className="line-clamp-3">{session.notes}</p>
                   </div>
                 )}
+                <div className="space-y-2 pt-2 border-t">
+                  <Label htmlFor={`session_status_${session.id}`}>Status</Label>
+                  <div className="flex items-center gap-2">
+                    <select
+                      id={`session_status_${session.id}`}
+                      className="flex h-10 min-w-0 flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                      value={session.status}
+                      disabled={updatingStatusId === session.id}
+                      onChange={(e) =>
+                        handleSessionStatusChange(session.id, e.target.value as SessionStatus)
+                      }
+                    >
+                      <option value="scheduled">Agendada</option>
+                      <option value="rescheduled">Remarcada</option>
+                      <option value="completed">Realizada</option>
+                      <option value="no_show">Falta</option>
+                      <option value="cancelled">Cancelada</option>
+                    </select>
+                    {updatingStatusId === session.id && (
+                      <Loader2 className="h-4 w-4 shrink-0 animate-spin text-muted-foreground" />
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Você pode alterar o status a qualquer momento, inclusive após marcar como realizada.
+                  </p>
+                </div>
                 <div className="flex flex-wrap gap-2 pt-2 border-t">
                   {/* Botão de Relatório */}
                   {loadingReports[session.id] ? (

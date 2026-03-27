@@ -45,6 +45,7 @@ import {
   Settings,
   Save,
   Info,
+  Cake,
 } from "lucide-react"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "../../components/ui/tabs"
 import {
@@ -566,6 +567,7 @@ export default function ComunicacoesPage() {
     quiz_updated: "Quiz Atualizado",
     quiz_response: "Resposta de Quiz",
     diary_new: "Novo Diário",
+    post_therapy_note: "Pós-terapia (nova nota)",
     push_test: "Notificação de Teste",
   }
 
@@ -575,6 +577,7 @@ export default function ComunicacoesPage() {
     quiz_updated: "patient",
     quiz_response: "psychologist",
     diary_new: "psychologist",
+    post_therapy_note: "patient",
     push_test: "psychologist",
   }
 
@@ -584,6 +587,7 @@ export default function ComunicacoesPage() {
     quiz_updated: ["{quiz_title}"],
     quiz_response: ["{patient_name}", "{quiz_title}"],
     diary_new: ["{patient_name}"],
+    post_therapy_note: ["{note_title}", "{patient_name}"],
     push_test: [],
   }
 
@@ -962,7 +966,9 @@ export default function ComunicacoesPage() {
                                 ? "bg-primary/20"
                                 : notification.type === "reminder"
                                   ? "bg-yellow-100 dark:bg-yellow-900/30"
-                                  : "bg-secondary/20"
+                                  : notification.type === "birthday"
+                                    ? "bg-pink-100 dark:bg-pink-900/30"
+                                    : "bg-secondary/20"
                           }`}
                         >
                           {notification.type === "payment" ? (
@@ -971,6 +977,8 @@ export default function ComunicacoesPage() {
                             <Bell className="h-5 w-5 text-primary" />
                           ) : notification.type === "reminder" ? (
                             <AlertCircle className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />
+                          ) : notification.type === "birthday" ? (
+                            <Cake className="h-5 w-5 text-pink-600 dark:text-pink-400" />
                           ) : (
                             <MessageSquare className="h-5 w-5 text-muted-foreground" />
                           )}
