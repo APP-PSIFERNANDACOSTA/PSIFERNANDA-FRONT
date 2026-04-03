@@ -33,6 +33,8 @@ import resourceService from "@/services/resource-service"
 import type { Resource } from "@/types/resource"
 import { RESOURCE_CATEGORIES, SHARING_TYPES } from "@/types/resource"
 import { showSuccessToast, showErrorToast } from "@/lib/toast-helpers"
+import { usePrivacyMode } from "@/contexts/privacy-mode-context"
+import { maskPatientName } from "@/lib/privacy-mask"
 
 const fileIcons = {
   pdf: FileText,
@@ -44,6 +46,7 @@ const fileIcons = {
 }
 
 export default function ResourceDetailsPage() {
+  const { privacyMode } = usePrivacyMode()
   const router = useRouter()
   const params = useParams()
   const resourceId = parseInt(params.id as string)
@@ -372,7 +375,7 @@ export default function ResourceDetailsPage() {
                       {sharedPatients.map(patient => (
                         <div key={patient.id} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
                           <div>
-                            <p className="text-sm font-medium">{patient.name}</p>
+                            <p className="text-sm font-medium">{maskPatientName(patient.name, privacyMode)}</p>
                             <p className="text-xs text-muted-foreground">{patient.email}</p>
                           </div>
                           <Button
@@ -445,7 +448,7 @@ export default function ResourceDetailsPage() {
                       }}
                     />
                     <Label htmlFor={`share-patient-${patient.id}`} className="cursor-pointer">
-                      {patient.name}
+                      {maskPatientName(patient.name, privacyMode)}
                     </Label>
                   </div>
                 ))}

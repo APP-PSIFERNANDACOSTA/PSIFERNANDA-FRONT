@@ -24,9 +24,12 @@ import patientService from "@/services/patient-service"
 import type { CreateResourceData } from "@/types/resource"
 import { RESOURCE_CATEGORIES, SHARING_TYPES } from "@/types/resource"
 import { showSuccessToast, showErrorToast } from "@/lib/toast-helpers"
+import { usePrivacyMode } from "@/contexts/privacy-mode-context"
+import { maskPatientName } from "@/lib/privacy-mask"
 
 export default function CreateResourcePage() {
   const router = useRouter()
+  const { privacyMode } = usePrivacyMode()
   const [isLoading, setIsLoading] = useState(false)
   const [formData, setFormData] = useState<CreateResourceData & { video_url?: string; resourceType?: 'file' | 'video' }>({
     file: undefined,
@@ -492,7 +495,7 @@ export default function CreateResourcePage() {
                           }}
                         />
                         <Label htmlFor={`patient-${patient.id}`} className="cursor-pointer">
-                          {patient.name}
+                          {maskPatientName(patient.name, privacyMode)}
                         </Label>
                       </div>
                     ))}

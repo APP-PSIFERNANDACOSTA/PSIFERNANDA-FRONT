@@ -15,8 +15,11 @@ import patientService from "@/services/patient-service"
 import type { Patient, PortalAccessCredentials, PatientsResponse } from "@/types/patient"
 import { PAYMENT_TYPES } from "@/types/patient"
 import { showSuccessToast, showErrorToast } from "@/lib/toast-helpers"
+import { usePrivacyMode } from "@/contexts/privacy-mode-context"
+import { maskEmail, maskMoneyBr, maskPatientName, maskPhone } from "@/lib/privacy-mask"
 
 export default function PatientsPage() {
+  const { privacyMode } = usePrivacyMode()
   const [patientsData, setPatientsData] = useState<PatientsResponse | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
@@ -172,7 +175,7 @@ export default function PatientsPage() {
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between">
                     <div className="space-y-1">
-                      <CardTitle className="text-lg">{patient.name}</CardTitle>
+                      <CardTitle className="text-lg">{maskPatientName(patient.name, privacyMode)}</CardTitle>
                       <div className="flex items-center gap-2">
                         <Badge variant={patient.status === "active" ? "default" : "secondary"}>
                           {patient.status === "active" ? "Ativo" : "Inativo"}
@@ -209,13 +212,13 @@ export default function PatientsPage() {
                     {patient.email && (
                       <div className="flex items-center gap-2 text-sm">
                         <Mail className="h-4 w-4 text-muted-foreground" />
-                        <span className="truncate">{patient.email}</span>
+                        <span className="truncate">{maskEmail(patient.email, privacyMode)}</span>
                       </div>
                     )}
                     {patient.phone && (
                       <div className="flex items-center gap-2 text-sm">
                         <Phone className="h-4 w-4 text-muted-foreground" />
-                        <span>{patient.phone}</span>
+                        <span>{maskPhone(patient.phone, privacyMode)}</span>
                       </div>
                     )}
                     {patient.payment_type && (
@@ -227,7 +230,7 @@ export default function PatientsPage() {
                     {patient.price_session && (
                       <div className="flex items-center gap-2 text-sm">
                         <DollarSign className="h-4 w-4 text-muted-foreground" />
-                        <span>Valor da Sessão: R$ {Number(patient.price_session).toFixed(2)}</span>
+                        <span>Valor da Sessão: {maskMoneyBr(patient.price_session, privacyMode)}</span>
                       </div>
                     )}
                   </div>

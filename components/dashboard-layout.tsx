@@ -4,7 +4,6 @@ import React, { useState, useEffect } from "react"
 import { Sidebar } from "./sidebar"
 import { Topbar } from "./topbar"
 import { ProtectedRoute } from "./protected-route"
-
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)

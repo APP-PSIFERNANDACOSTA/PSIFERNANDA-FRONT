@@ -13,7 +13,6 @@ import {
   MessageSquare,
   BarChart3,
   User,
-  Palette,
   X,
   ChevronLeft,
   ChevronRight,
@@ -42,7 +41,6 @@ const navigation = [
   { name: "Pagamentos", href: "/dashboard/payments", icon: DollarSign },
   { name: "Financeiro", href: "/dashboard/financial", icon: BarChart3 },
   { name: "Comunicações", href: "/communications", icon: MessageSquare },
-  { name: "Cores", href: "/settings/colors-simple", icon: Palette },
 ]
 
 interface SidebarProps {

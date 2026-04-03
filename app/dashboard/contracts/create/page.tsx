@@ -16,9 +16,12 @@ import { CONTRACT_PAYMENT_TYPES } from "@/types/contract"
 import type { Patient } from "@/types/patient"
 import { showErrorToast, showSuccessToast } from "@/lib/toast-helpers"
 import type { Contract } from "@/types/contract"
+import { usePrivacyMode } from "@/contexts/privacy-mode-context"
+import { maskPatientName } from "@/lib/privacy-mask"
 
 function CreateContractContent() {
   const router = useRouter()
+  const { privacyMode } = usePrivacyMode()
   const searchParams = useSearchParams()
   const [isLoading, setIsLoading] = useState(false)
   const [contract, setContract] = useState<Contract | null>(null)
@@ -230,7 +233,9 @@ ${closing}`
                   {contract.patient && (
                     <div className="col-span-2">
                       <span className="font-medium text-gray-500">Paciente vinculado:</span>
-                      <p className="text-gray-900">{contract.patient.name}</p>
+                      <p className="text-gray-900">
+                        {maskPatientName(contract.patient.name, privacyMode)}
+                      </p>
                       <p className="text-xs text-gray-500 mt-1">
                         Na assinatura, os dados vêm preenchidos e o cadastro existente é atualizado — não criamos outro
                         paciente.

@@ -11,11 +11,14 @@ import contractService from "@/services/contract-service"
 import type { Contract } from "@/types/contract"
 import { CONTRACT_STATUS_LABELS, CONTRACT_PAYMENT_TYPES } from "@/types/contract"
 import { showErrorToast, showSuccessToast } from "@/lib/toast-helpers"
+import { usePrivacyMode } from "@/contexts/privacy-mode-context"
+import { maskCpf, maskEmail, maskMoneyBr, maskPatientName, maskPhone } from "@/lib/privacy-mask"
 
 export default function ContractViewPage() {
   const params = useParams()
   const router = useRouter()
   const contractId = params.id as string
+  const { privacyMode } = usePrivacyMode()
   
   const [contract, setContract] = useState<Contract | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -237,7 +240,9 @@ export default function ContractViewPage() {
                   </div>
                   <div>
                     <label className="text-sm font-medium text-gray-500">Valor da Sessão</label>
-                    <p className="text-lg font-semibold">R$ {parseFloat(contract.price_session).toFixed(2)}</p>
+                    <p className="text-lg font-semibold">
+                      {maskMoneyBr(contract.price_session, privacyMode)}
+                    </p>
                   </div>
                 </div>
                 
@@ -353,20 +358,20 @@ export default function ContractViewPage() {
                 <CardContent className="space-y-3">
                   <div>
                     <label className="text-sm font-medium text-gray-500">Nome</label>
-                    <p className="text-sm">{contract.patient.name}</p>
+                    <p className="text-sm">{maskPatientName(contract.patient.name, privacyMode)}</p>
                   </div>
                   <div>
                     <label className="text-sm font-medium text-gray-500">Email</label>
-                    <p className="text-sm">{contract.patient.email}</p>
+                    <p className="text-sm">{maskEmail(contract.patient.email, privacyMode)}</p>
                   </div>
                   <div>
                     <label className="text-sm font-medium text-gray-500">Telefone</label>
-                    <p className="text-sm">{contract.patient.phone}</p>
+                    <p className="text-sm">{maskPhone(contract.patient.phone, privacyMode)}</p>
                   </div>
                   {contract.patient.cpf && (
                     <div>
                       <label className="text-sm font-medium text-gray-500">CPF</label>
-                      <p className="text-sm">{contract.patient.cpf}</p>
+                      <p className="text-sm">{maskCpf(contract.patient.cpf, privacyMode)}</p>
                     </div>
                   )}
                 </CardContent>

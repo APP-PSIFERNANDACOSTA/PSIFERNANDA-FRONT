@@ -77,6 +77,8 @@ import type { Patient } from "../../types/patient"
 import type { Task, TaskStatus, TaskPriority, TaskCategory, TaskStats } from "../../types/task"
 import type { Notification } from "../../types/notification"
 import { showErrorToast, showSuccessToast } from "../../lib/toast-helpers"
+import { usePrivacyMode } from "../../contexts/privacy-mode-context"
+import { maskLongText, maskPatientName } from "../../lib/privacy-mask"
 import { formatDistanceToNow } from "date-fns"
 import { ptBR } from "date-fns/locale"
 
@@ -102,6 +104,7 @@ function SortableTaskCard({
   isOverdue,
   isDone = false,
 }: TaskCardProps) {
+  const { privacyMode } = usePrivacyMode()
   const {
     attributes,
     listeners,
@@ -205,7 +208,7 @@ function SortableTaskCard({
             </span>
             {task.patient && (
               <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary">
-                {task.patient.name}
+                {maskPatientName(task.patient.name, privacyMode)}
               </span>
             )}
             {isOverdue && (
@@ -298,6 +301,7 @@ function TaskCardOverlay({
 
 
 export default function ComunicacoesPage() {
+  const { privacyMode } = usePrivacyMode()
   const { toast } = useToast()
   const searchParams = useSearchParams()
   const tabParam = searchParams.get("tab")
@@ -1287,7 +1291,7 @@ export default function ComunicacoesPage() {
                             {patients.length > 0 ? (
                               patients.map((p) => (
                                 <SelectItem key={p.id} value={String(p.id)}>
-                                  {p.name}
+                                  {maskPatientName(p.name, privacyMode)}
                                 </SelectItem>
                               ))
                             ) : (
@@ -1533,7 +1537,7 @@ export default function ComunicacoesPage() {
                                 {patients.length > 0 ? (
                                   patients.map((p) => (
                                     <SelectItem key={p.id} value={String(p.id)}>
-                                      {p.name}
+                                      {maskPatientName(p.name, privacyMode)}
                                     </SelectItem>
                                   ))
                                 ) : (
@@ -1604,7 +1608,7 @@ export default function ComunicacoesPage() {
                                   <p className="font-medium text-foreground">{msg.title}</p>
                                   {msg.patient ? (
                                     <Badge variant="outline" className="text-xs">
-                                      Para: {msg.patient.name}
+                                      Para: {maskPatientName(msg.patient.name, privacyMode)}
                                     </Badge>
                                   ) : (
                                     <Badge variant="outline" className="text-xs flex items-center gap-1">
@@ -1614,7 +1618,7 @@ export default function ComunicacoesPage() {
                                   )}
                                 </div>
                                 <p className="mt-1 text-sm text-muted-foreground whitespace-pre-line">
-                                  {msg.body}
+                                  {maskLongText(msg.body, privacyMode, 40)}
                                 </p>
                               </div>
                             </div>

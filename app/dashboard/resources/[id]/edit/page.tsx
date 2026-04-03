@@ -26,8 +26,11 @@ import patientService from "@/services/patient-service"
 import type { Resource, UpdateResourceData } from "@/types/resource"
 import { RESOURCE_CATEGORIES, SHARING_TYPES } from "@/types/resource"
 import { showSuccessToast, showErrorToast } from "@/lib/toast-helpers"
+import { usePrivacyMode } from "@/contexts/privacy-mode-context"
+import { maskPatientName } from "@/lib/privacy-mask"
 
 export default function EditResourcePage() {
+  const { privacyMode } = usePrivacyMode()
   const router = useRouter()
   const params = useParams()
   const resourceId = parseInt(params.id as string)
@@ -484,7 +487,7 @@ export default function EditResourcePage() {
                     <div className="flex flex-wrap gap-2 mt-2">
                       {sharedPatients.map(patient => (
                         <Badge key={patient.id} variant="outline" className="gap-1">
-                          {patient.name}
+                          {maskPatientName(patient.name, privacyMode)}
                           <X
                             className="h-3 w-3 cursor-pointer"
                             onClick={() => setFormData(prev => ({
@@ -517,7 +520,7 @@ export default function EditResourcePage() {
                         }}
                       />
                       <Label htmlFor={`patient-${patient.id}`} className="cursor-pointer">
-                        {patient.name}
+                        {maskPatientName(patient.name, privacyMode)}
                       </Label>
                     </div>
                   ))}

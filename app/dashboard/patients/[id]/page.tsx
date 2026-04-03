@@ -30,11 +30,14 @@ import { CONTRACT_STATUS_LABELS } from "@/types/contract"
 import { PatientQuizAssignment } from "@/types/quiz"
 import { showSuccessToast, showErrorToast } from "@/lib/toast-helpers"
 import { Brain, CheckCircle2, Clock, AlertCircle, Eye } from "lucide-react"
+import { usePrivacyMode } from "@/contexts/privacy-mode-context"
+import { maskCpf, maskEmail, maskLongText, maskMoneyBr, maskPatientName, maskPhone } from "@/lib/privacy-mask"
 
 export default function PatientDetailsPage() {
     const params = useParams()
     const router = useRouter()
     const patientId = Number(params.id)
+    const { privacyMode } = usePrivacyMode()
 
     const [isLoading, setIsLoading] = useState(true)
     const [patient, setPatient] = useState<Patient | null>(null)
@@ -306,7 +309,9 @@ export default function PatientDetailsPage() {
                             </Button>
                         </Link>
                         <div className="min-w-0 flex-1">
-                            <h1 className="text-xl sm:text-2xl font-bold truncate">{patient.name}</h1>
+                            <h1 className="text-xl sm:text-2xl font-bold truncate">
+                                {maskPatientName(patient.name, privacyMode)}
+                            </h1>
                             <div className="flex flex-wrap items-center gap-2 mt-1">
                                 <Badge variant={patient.status === "active" ? "default" : "secondary"} className="text-xs">
                                     {patient.status === "active" ? "Ativo" : "Inativo"}
@@ -395,7 +400,9 @@ export default function PatientDetailsPage() {
                                             </div>
                                             <div className="min-w-0 flex-1">
                                                 <p className="text-xs sm:text-sm font-medium">Email</p>
-                                                <p className="text-xs sm:text-sm text-muted-foreground break-words">{patient.email}</p>
+                                                <p className="text-xs sm:text-sm text-muted-foreground break-words">
+                                                    {maskEmail(patient.email, privacyMode)}
+                                                </p>
                                             </div>
                                         </div>
                                     )}
@@ -407,7 +414,9 @@ export default function PatientDetailsPage() {
                                             </div>
                                             <div className="min-w-0 flex-1">
                                                 <p className="text-xs sm:text-sm font-medium">Telefone</p>
-                                                <p className="text-xs sm:text-sm text-muted-foreground break-words">{patient.phone}</p>
+                                                <p className="text-xs sm:text-sm text-muted-foreground break-words">
+                                                    {maskPhone(patient.phone, privacyMode)}
+                                                </p>
                                             </div>
                                         </div>
                                     )}
@@ -419,7 +428,9 @@ export default function PatientDetailsPage() {
                                             </div>
                                             <div className="min-w-0 flex-1">
                                                 <p className="text-xs sm:text-sm font-medium">CPF</p>
-                                                <p className="text-xs sm:text-sm text-muted-foreground break-words">{patient.cpf}</p>
+                                                <p className="text-xs sm:text-sm text-muted-foreground break-words">
+                                                    {maskCpf(patient.cpf, privacyMode)}
+                                                </p>
                                             </div>
                                         </div>
                                     )}
@@ -431,7 +442,9 @@ export default function PatientDetailsPage() {
                                             </div>
                                             <div className="min-w-0 flex-1">
                                                 <p className="text-xs sm:text-sm font-medium">Endereço</p>
-                                                <p className="text-xs sm:text-sm text-muted-foreground break-words">{patient.address}</p>
+                                                <p className="text-xs sm:text-sm text-muted-foreground break-words">
+                                                    {maskLongText(patient.address, privacyMode)}
+                                                </p>
                                             </div>
                                         </div>
                                     )}
@@ -443,7 +456,9 @@ export default function PatientDetailsPage() {
                                             </div>
                                             <div className="min-w-0 flex-1">
                                                 <p className="text-xs sm:text-sm font-medium">Contato de Emergência</p>
-                                                <p className="text-xs sm:text-sm text-muted-foreground break-words">{patient.emergency_contact}</p>
+                                                <p className="text-xs sm:text-sm text-muted-foreground break-words">
+                                                    {maskLongText(patient.emergency_contact, privacyMode)}
+                                                </p>
                                             </div>
                                         </div>
                                     )}
@@ -455,7 +470,9 @@ export default function PatientDetailsPage() {
                                             </div>
                                             <div className="min-w-0 flex-1">
                                                 <p className="text-xs sm:text-sm font-medium">Convênio/Plano de Saúde</p>
-                                                <p className="text-xs sm:text-sm text-muted-foreground break-words">{patient.insurance}</p>
+                                                <p className="text-xs sm:text-sm text-muted-foreground break-words">
+                                                    {maskLongText(patient.insurance, privacyMode, 6)}
+                                                </p>
                                             </div>
                                         </div>
                                     )}
@@ -467,7 +484,9 @@ export default function PatientDetailsPage() {
                                             </div>
                                             <div className="min-w-0 flex-1">
                                                 <p className="text-xs sm:text-sm font-medium">Valor da Sessão</p>
-                                                <p className="text-xs sm:text-sm text-muted-foreground">R$ {Number(patient.price_session).toFixed(2)}</p>
+                                                <p className="text-xs sm:text-sm text-muted-foreground">
+                                                    {maskMoneyBr(patient.price_session, privacyMode)}
+                                                </p>
                                             </div>
                                         </div>
                                     )}
@@ -497,7 +516,7 @@ export default function PatientDetailsPage() {
                                 </CardHeader>
                                 <CardContent className="p-4 sm:p-6">
                                     <p className="text-xs sm:text-sm text-muted-foreground whitespace-pre-wrap break-words">
-                                        {patient.initial_notes}
+                                        {maskLongText(patient.initial_notes, privacyMode, 24)}
                                     </p>
                                 </CardContent>
                             </Card>
@@ -553,18 +572,36 @@ export default function PatientDetailsPage() {
                                                 <Label className="text-xs sm:text-sm font-medium">Email de Acesso</Label>
                                                 <div className="flex items-center gap-2">
                                                     <Input
-                                                        value={credentials?.email || patient?.user?.email || patient?.email || ""}
+                                                        value={(() => {
+                                                            const em =
+                                                                credentials?.email ||
+                                                                patient?.user?.email ||
+                                                                patient?.email ||
+                                                                ""
+                                                            return privacyMode ? maskEmail(em, true) : em
+                                                        })()}
                                                         readOnly
                                                         className="bg-muted text-xs sm:text-sm"
                                                     />
                                                     <Button
                                                         size="sm"
                                                         variant="outline"
-                                                        onClick={() =>
-                                                            copyToClipboard(
-                                                                credentials?.email || patient?.user?.email || patient?.email || "",
-                                                                "Email"
-                                                            )
+                                                        onClick={() => {
+                                                            const em =
+                                                                credentials?.email ||
+                                                                patient?.user?.email ||
+                                                                patient?.email ||
+                                                                ""
+                                                            if (em) copyToClipboard(em, "Email")
+                                                        }}
+                                                        disabled={
+                                                            privacyMode ||
+                                                            !(credentials?.email || patient?.user?.email || patient?.email)
+                                                        }
+                                                        title={
+                                                            privacyMode
+                                                                ? "Desative o modo privacidade para copiar"
+                                                                : undefined
                                                         }
                                                         className="flex-shrink-0"
                                                     >
@@ -581,7 +618,12 @@ export default function PatientDetailsPage() {
                                                 <Label className="text-xs sm:text-sm font-medium">Senha Temporária</Label>
                                                 <div className="flex items-center gap-2">
                                                     <Input
-                                                        value={credentials?.temporary_password || "Já definida pelo paciente"}
+                                                        value={
+                                                            privacyMode && credentials?.temporary_password
+                                                                ? "••••••••"
+                                                                : credentials?.temporary_password ||
+                                                                  "Já definida pelo paciente"
+                                                        }
                                                         readOnly
                                                         className="bg-muted text-xs sm:text-sm"
                                                     />
@@ -592,7 +634,12 @@ export default function PatientDetailsPage() {
                                                             credentials?.temporary_password &&
                                                             copyToClipboard(credentials.temporary_password, "Senha")
                                                         }
-                                                        disabled={!credentials?.temporary_password}
+                                                        disabled={privacyMode || !credentials?.temporary_password}
+                                                        title={
+                                                            privacyMode
+                                                                ? "Desative o modo privacidade para copiar"
+                                                                : undefined
+                                                        }
                                                         className="flex-shrink-0"
                                                     >
                                                         {copiedField === "Senha" ? (
@@ -697,7 +744,7 @@ export default function PatientDetailsPage() {
                             <div>
                                 <h2 className="text-lg sm:text-xl font-semibold">Diário Emocional</h2>
                                 <p className="text-xs sm:text-sm text-muted-foreground">
-                                    Entradas do diário de {patient.name}
+                                    Entradas do diário de {maskPatientName(patient.name, privacyMode)}
                                 </p>
                             </div>
                             <Button onClick={() => loadDiaryEntries(diaryFilters)} variant="outline" className="gap-2 w-full sm:w-auto">
@@ -709,7 +756,7 @@ export default function PatientDetailsPage() {
                         {/* Análise Semanal */}
                         <WeeklyAnalysisDropdown
                             patientId={patientId}
-                            patientName={patient.name}
+                            patientName={maskPatientName(patient.name, privacyMode)}
                             isOpen={isAnalysisOpen}
                             onOpenChange={setIsAnalysisOpen}
                         />
@@ -760,7 +807,7 @@ export default function PatientDetailsPage() {
                         {patient && (
                             <PatientSessions
                                 patientId={patientId}
-                                patientName={patient.name}
+                                patientName={maskPatientName(patient.name, privacyMode)}
                                 priceSession={patient.price_session}
                             />
                         )}
@@ -777,7 +824,8 @@ export default function PatientDetailsPage() {
                             <div>
                                 <h3 className="text-base sm:text-lg font-semibold">Contratos do Paciente</h3>
                                 <p className="text-xs sm:text-sm text-gray-500">
-                                    Histórico de contratos assinados por {patient?.name}
+                                    Histórico de contratos assinados por{" "}
+                                    {patient ? maskPatientName(patient.name, privacyMode) : ""}
                                 </p>
                             </div>
                             <Button
@@ -831,7 +879,10 @@ export default function PatientDetailsPage() {
                                                     </div>
                                                     <div className="text-xs sm:text-sm text-gray-500 space-y-1">
                                                         <p>Tipo: {contract.payment_type === 'por_sessao' ? 'Por Sessão' : contract.payment_type === 'quinzenal' ? 'Quinzenal' : 'Mensal'}</p>
-                                                        <p>Valor: R$ {parseFloat(contract.price_session).toFixed(2)}</p>
+                                                        <p>
+                                                            Valor:{" "}
+                                                            {maskMoneyBr(contract.price_session, privacyMode)}
+                                                        </p>
                                                         {contract.signed_at && (
                                                             <p>Assinado em: {new Date(contract.signed_at).toLocaleDateString('pt-BR')}</p>
                                                         )}

@@ -4,6 +4,7 @@ import { Poppins } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import "./globals.css"
 import { AuthProvider } from "@/contexts/auth-context"
+import { PrivacyModeProvider } from "@/contexts/privacy-mode-context"
 import { Toaster } from "@/components/ui/toaster"
 import { ColorProvider } from "@/components/color-provider"
 import { ThemeProvider } from "@/components/theme-provider"
@@ -64,10 +65,12 @@ export default function RootLayout({
         >
           <ColorProvider>
             <AuthProvider>
-              <AuthThemeConnector />
-              <PWAUpdatePrompt />
-              <PWAInstallPrompt />
-              {children}
+              <PrivacyModeProvider>
+                <AuthThemeConnector />
+                <PWAUpdatePrompt />
+                <PWAInstallPrompt />
+                {children}
+              </PrivacyModeProvider>
             </AuthProvider>
             <Toaster />
             <Analytics />

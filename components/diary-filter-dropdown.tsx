@@ -10,6 +10,8 @@ import { Search, Filter, ChevronDown, ChevronUp } from "lucide-react"
 import type { DiaryFilters, MoodType } from "@/types/diary"
 import { MOOD_OPTIONS } from "@/types/diary"
 import type { Patient } from "@/types/patient"
+import { usePrivacyMode } from "@/contexts/privacy-mode-context"
+import { maskPatientName } from "@/lib/privacy-mask"
 
 interface DiaryFilterDropdownProps {
   onFiltersChange: (filters: DiaryFilters) => void
@@ -38,6 +40,7 @@ export function DiaryFilterDropdown({
   isOpen = false,
   onOpenChange
 }: DiaryFilterDropdownProps) {
+  const { privacyMode } = usePrivacyMode()
   const [filters, setFilters] = useState<DiaryFilters>({
     patient_id: undefined,
     start_date: undefined,
@@ -130,7 +133,7 @@ export function DiaryFilterDropdown({
                         <SelectItem value="all">Todos os pacientes</SelectItem>
                         {Array.isArray(patients) && patients.map((patient) => (
                           <SelectItem key={patient.id} value={patient.id.toString()}>
-                            {patient.name}
+                            {maskPatientName(patient.name, privacyMode)}
                           </SelectItem>
                         ))}
                       </SelectContent>

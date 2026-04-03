@@ -13,11 +13,14 @@ import paymentService from "@/services/payment-service"
 import type { Payment, PaymentMethod } from "@/types/payment"
 import { PAYMENT_METHOD_LABELS, PAYMENT_METHOD_COLORS } from "@/types/payment"
 import { showErrorToast } from "@/lib/toast-helpers"
+import { usePrivacyMode } from "@/contexts/privacy-mode-context"
+import { maskLongText, maskMoneyBr, maskPatientName } from "@/lib/privacy-mask"
 import { format } from "date-fns"
 import { ptBR } from "date-fns/locale"
 
 export default function PaymentsPage() {
   const router = useRouter()
+  const { privacyMode } = usePrivacyMode()
   const [payments, setPayments] = useState<Payment[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
@@ -67,6 +70,9 @@ export default function PaymentsPage() {
       currency: 'BRL',
     }).format(Number(amount))
   }
+
+  const displayCurrency = (amount: string) =>
+    privacyMode ? maskMoneyBr(amount, true) : formatCurrency(amount)
 
   const filteredPayments = payments.filter((payment) => {
     if (searchTerm) {
@@ -185,13 +191,15 @@ export default function PaymentsPage() {
                         <div>
                           <p className="text-sm font-medium text-gray-500">Paciente</p>
                           <p className="text-sm font-semibold text-gray-900">
-                            {payment.patient?.name || 'N/A'}
+                            {payment.patient?.name
+                              ? maskPatientName(payment.patient.name, privacyMode)
+                              : "N/A"}
                           </p>
                         </div>
                         <div>
                           <p className="text-sm font-medium text-gray-500">Valor</p>
                           <p className="text-lg font-bold text-green-600">
-                            {formatCurrency(payment.amount)}
+                            {displayCurrency(payment.amount)}
                           </p>
                         </div>
                         <div>
@@ -210,7 +218,9 @@ export default function PaymentsPage() {
                         {payment.description && (
                           <div>
                             <p className="text-sm font-medium text-gray-500">Descrição</p>
-                            <p className="text-sm text-gray-900">{payment.description}</p>
+                            <p className="text-sm text-gray-900">
+                              {maskLongText(payment.description ?? "", privacyMode, 24)}
+                            </p>
                           </div>
                         )}
                       </div>

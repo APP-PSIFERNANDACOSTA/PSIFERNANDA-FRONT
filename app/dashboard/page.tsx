@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Users, Calendar, TrendingUp, DollarSign, CheckCircle2, Clock, BookOpen, Loader2, ChevronDown, ChevronUp, Eye, EyeOff } from "lucide-react"
+import { Users, Calendar, TrendingUp, DollarSign, CheckCircle2, Clock, BookOpen, Loader2, ChevronDown, ChevronUp } from "lucide-react"
 import { NotificationPromptBanner } from "@/components/notification-prompt-banner"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Button } from "@/components/ui/button"
@@ -19,6 +19,8 @@ import { ptBR } from "date-fns/locale"
 import type { Session } from "@/types/session"
 import type { Payment } from "@/types/payment"
 import type { Task } from "@/types/task"
+import { usePrivacyMode } from "@/contexts/privacy-mode-context"
+import { maskPatientName } from "@/lib/privacy-mask"
 
 export default function DashboardPage() {
   const [isLoading, setIsLoading] = useState(true)
@@ -40,35 +42,11 @@ export default function DashboardPage() {
   const [sessionsOpen, setSessionsOpen] = useState(false)
   const [tasksOpen, setTasksOpen] = useState(false)
   const [dashboardTasks, setDashboardTasks] = useState<Task[]>([])
-  const [privacyMode, setPrivacyMode] = useState(false)
+  const { privacyMode } = usePrivacyMode()
 
   useEffect(() => {
     loadDashboardData()
-    // Carregar preferência de privacidade do localStorage (apenas no cliente)
-    if (typeof window !== 'undefined') {
-      try {
-        const savedPrivacyMode = localStorage.getItem('dashboard-privacy-mode') === 'true'
-        setPrivacyMode(savedPrivacyMode)
-      } catch (error) {
-        console.error('Erro ao carregar preferência de privacidade:', error)
-      }
-    }
   }, [])
-
-  // Função helper para mascarar nomes (mostrar apenas 2 primeiras letras)
-  const maskName = (name: string | undefined | null): string => {
-    if (!name) return 'N/A'
-    if (privacyMode && name.length > 2) {
-      return name.substring(0, 2) + '*'.repeat(Math.min(name.length - 2, 10))
-    }
-    return name
-  }
-
-  // Função para mascarar valores monetários
-  const maskValue = (value: string | number): string => {
-    if (privacyMode) return 'R$ •••'
-    return typeof value === 'number' ? formatCurrency(value) : value
-  }
 
   const loadDashboardData = async () => {
     setIsLoading(true)
@@ -339,35 +317,6 @@ export default function DashboardPage() {
             <p className="mt-1 text-muted-foreground">Aqui está um resumo da sua agenda e atividades de hoje</p>
           </div>
           <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-            <Button
-              variant="outline"
-              size="lg"
-              onClick={() => {
-                const newPrivacyMode = !privacyMode
-                setPrivacyMode(newPrivacyMode)
-                if (typeof window !== 'undefined') {
-                  try {
-                    localStorage.setItem('dashboard-privacy-mode', newPrivacyMode.toString())
-                  } catch (error) {
-                    console.error('Erro ao salvar preferência de privacidade:', error)
-                  }
-                }
-              }}
-              className="gap-2"
-              title={privacyMode ? "Mostrar dados sensíveis" : "Ocultar dados sensíveis"}
-            >
-              {privacyMode ? (
-                <>
-                  <EyeOff className="h-5 w-5" />
-                  Modo Privacidade
-                </>
-              ) : (
-                <>
-                  <Eye className="h-5 w-5" />
-                  Ocultar Dados
-                </>
-              )}
-            </Button>
             <Link href="/dashboard/schedule">
               <Button 
                 size="lg" 
@@ -503,7 +452,9 @@ export default function DashboardPage() {
                           <div className="flex-1 min-w-0">
                             <p className="text-sm text-foreground">
                               {task.title ?? task.task}
-                              {task.patient?.name ? ` - ${task.patient.name}` : ""}
+                              {task.patient?.name
+                                ? ` - ${maskPatientName(task.patient.name, privacyMode)}`
+                                : ""}
                             </p>
                             <span
                               className={`mt-1 inline-block rounded-full px-2 py-0.5 text-xs ${priorityClass[task.priority] ?? priorityClass.low}`}
@@ -575,7 +526,9 @@ export default function DashboardPage() {
                         </div>
                         <div className="min-w-0">
                           <p className="font-medium text-foreground">
-                            {maskName(session.patient?.name)}
+                            {session.patient?.name
+                              ? maskPatientName(session.patient.name, privacyMode)
+                              : "N/A"}
                           </p>
                           <p className="text-sm text-muted-foreground">
                             {session.duration ? `${session.duration} min` : "Duração não definida"}

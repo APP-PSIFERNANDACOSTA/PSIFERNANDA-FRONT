@@ -11,6 +11,8 @@ import paymentService from "@/services/payment-service"
 import type { Payment } from "@/types/payment"
 import { PAYMENT_METHOD_LABELS, PAYMENT_METHOD_COLORS } from "@/types/payment"
 import { showErrorToast } from "@/lib/toast-helpers"
+import { usePrivacyMode } from "@/contexts/privacy-mode-context"
+import { maskEmail, maskLongText, maskMoneyBr, maskPatientName } from "@/lib/privacy-mask"
 import { format } from "date-fns"
 import { ptBR } from "date-fns/locale"
 
@@ -18,6 +20,7 @@ export default function PaymentViewPage() {
   const params = useParams()
   const router = useRouter()
   const paymentId = params.id as string
+  const { privacyMode } = usePrivacyMode()
 
   const [payment, setPayment] = useState<Payment | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -71,6 +74,9 @@ export default function PaymentViewPage() {
       currency: 'BRL',
     }).format(Number(amount))
   }
+
+  const displayCurrency = (amount: string) =>
+    privacyMode ? maskMoneyBr(amount, true) : formatCurrency(amount)
 
   if (isLoading) {
     return (
@@ -161,7 +167,7 @@ export default function PaymentViewPage() {
                   <div>
                     <p className="text-sm font-medium text-gray-500 mb-1">Valor</p>
                     <p className="text-2xl font-bold text-green-600">
-                      {formatCurrency(payment.amount)}
+                      {displayCurrency(payment.amount)}
                     </p>
                   </div>
                   <div>
@@ -190,7 +196,7 @@ export default function PaymentViewPage() {
                   <div>
                     <p className="text-sm font-medium text-gray-500 mb-2">Descrição / Observações</p>
                     <p className="text-sm text-gray-900 bg-gray-50 p-3 rounded-lg">
-                      {payment.description}
+                      {maskLongText(payment.description ?? "", privacyMode, 30)}
                     </p>
                   </div>
                 )}
@@ -226,12 +232,16 @@ export default function PaymentViewPage() {
                   <div className="space-y-3">
                     <div>
                       <p className="text-sm font-medium text-gray-500">Nome</p>
-                      <p className="text-sm text-gray-900 font-semibold">{payment.patient.name}</p>
+                      <p className="text-sm text-gray-900 font-semibold">
+                        {maskPatientName(payment.patient.name, privacyMode)}
+                      </p>
                     </div>
                     {payment.patient.email && (
                       <div>
                         <p className="text-sm font-medium text-gray-500">Email</p>
-                        <p className="text-sm text-gray-900">{payment.patient.email}</p>
+                        <p className="text-sm text-gray-900">
+                          {maskEmail(payment.patient.email, privacyMode)}
+                        </p>
                       </div>
                     )}
                   </div>

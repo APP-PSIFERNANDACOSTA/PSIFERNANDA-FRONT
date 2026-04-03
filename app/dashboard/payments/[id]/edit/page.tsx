@@ -16,12 +16,15 @@ import type { UpdatePaymentData, PaymentMethod, Payment } from "@/types/payment"
 import type { Patient } from "@/types/patient"
 import { PAYMENT_METHOD_LABELS } from "@/types/payment"
 import { showErrorToast, showSuccessToast } from "@/lib/toast-helpers"
+import { usePrivacyMode } from "@/contexts/privacy-mode-context"
+import { maskPatientName } from "@/lib/privacy-mask"
 import { format } from "date-fns"
 
 export default function EditPaymentPage() {
   const params = useParams()
   const router = useRouter()
   const paymentId = params.id as string
+  const { privacyMode } = usePrivacyMode()
 
   const [isLoading, setIsLoading] = useState(false)
   const [isLoadingPayment, setIsLoadingPayment] = useState(true)
@@ -175,7 +178,11 @@ export default function EditPaymentPage() {
                 <Label>Paciente</Label>
                 <Input
                   type="text"
-                  value={payment.patient?.name || 'N/A'}
+                  value={
+                    payment.patient?.name
+                      ? maskPatientName(payment.patient.name, privacyMode)
+                      : "N/A"
+                  }
                   disabled
                   className="bg-gray-50"
                 />

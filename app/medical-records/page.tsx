@@ -17,6 +17,8 @@ import { Badge } from "@/components/ui/badge"
 import recordService from "@/services/record-service"
 import type { Record } from "@/types/record"
 import { showErrorToast } from "@/lib/toast-helpers"
+import { usePrivacyMode } from "@/contexts/privacy-mode-context"
+import { maskLongText, maskPatientName } from "@/lib/privacy-mask"
 import { format } from "date-fns"
 import { ptBR } from "date-fns/locale"
 
@@ -29,6 +31,7 @@ const SESSION_TYPE_LABELS: Record<string, string> = {
 
 export default function ProntuariosPage() {
   const router = useRouter()
+  const { privacyMode } = usePrivacyMode()
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedRecord, setSelectedRecord] = useState<Record | null>(null)
   const [records, setRecords] = useState<Record[]>([])
@@ -130,7 +133,9 @@ export default function ProntuariosPage() {
                         </div>
                         <div>
                           <h3 className="text-lg font-semibold text-foreground">
-                            {record.patient?.name || "Paciente"}
+                            {record.patient?.name
+                              ? maskPatientName(record.patient.name, privacyMode)
+                              : "Paciente"}
                           </h3>
                           <div className="mt-1 flex items-center gap-4 text-sm text-muted-foreground">
                             <span className="flex items-center gap-1">
@@ -147,7 +152,11 @@ export default function ProntuariosPage() {
                       </div>
                       {record.complaints && (
                         <p className="text-sm text-muted-foreground line-clamp-2">
-                          {record.complaints}
+                          {maskLongText(
+                            record.complaints.replace(/<[^>]*>/g, " ").trim(),
+                            privacyMode,
+                            30
+                          )}
                         </p>
                       )}
                       {record.session_report && (
@@ -193,7 +202,9 @@ export default function ProntuariosPage() {
                     </div>
                     <div>
                       <h3 className="text-lg font-semibold text-foreground">
-                        {selectedRecord.patient?.name || "Paciente"}
+                        {selectedRecord.patient?.name
+                          ? maskPatientName(selectedRecord.patient.name, privacyMode)
+                          : "Paciente"}
                       </h3>
                       <div className="mt-1 flex items-center gap-3 text-sm text-muted-foreground">
                         {selectedRecord.session_number && <span>Sessão #{selectedRecord.session_number}</span>}
@@ -221,7 +232,9 @@ export default function ProntuariosPage() {
                         <CardTitle className="text-sm font-medium text-muted-foreground">Diagnóstico</CardTitle>
                       </CardHeader>
                       <CardContent>
-                        <p className="text-sm text-foreground">{selectedRecord.diagnosis}</p>
+                        <p className="text-sm text-foreground">
+                          {maskLongText(selectedRecord.diagnosis, privacyMode, 40)}
+                        </p>
                       </CardContent>
                     </Card>
                   )}
@@ -232,10 +245,14 @@ export default function ProntuariosPage() {
                         <CardTitle className="text-sm font-medium text-muted-foreground">Queixa Principal</CardTitle>
                       </CardHeader>
                       <CardContent>
-                        <div 
-                          className="text-sm leading-relaxed text-foreground prose prose-sm max-w-none dark:prose-invert"
-                          dangerouslySetInnerHTML={{ __html: selectedRecord.complaints }}
-                        />
+                        {privacyMode ? (
+                          <p className="text-sm text-muted-foreground">Oculto no modo privacidade.</p>
+                        ) : (
+                          <div
+                            className="text-sm leading-relaxed text-foreground prose prose-sm max-w-none dark:prose-invert"
+                            dangerouslySetInnerHTML={{ __html: selectedRecord.complaints }}
+                          />
+                        )}
                       </CardContent>
                     </Card>
                   )}
@@ -246,10 +263,14 @@ export default function ProntuariosPage() {
                         <CardTitle className="text-sm font-medium text-muted-foreground">Observações Clínicas</CardTitle>
                       </CardHeader>
                       <CardContent>
-                        <div 
-                          className="text-sm leading-relaxed text-foreground prose prose-sm max-w-none dark:prose-invert"
-                          dangerouslySetInnerHTML={{ __html: selectedRecord.observations }}
-                        />
+                        {privacyMode ? (
+                          <p className="text-sm text-muted-foreground">Oculto no modo privacidade.</p>
+                        ) : (
+                          <div
+                            className="text-sm leading-relaxed text-foreground prose prose-sm max-w-none dark:prose-invert"
+                            dangerouslySetInnerHTML={{ __html: selectedRecord.observations }}
+                          />
+                        )}
                       </CardContent>
                     </Card>
                   )}
@@ -262,10 +283,14 @@ export default function ProntuariosPage() {
                         </CardTitle>
                       </CardHeader>
                       <CardContent>
-                        <div 
-                          className="text-sm leading-relaxed text-foreground prose prose-sm max-w-none dark:prose-invert"
-                          dangerouslySetInnerHTML={{ __html: selectedRecord.interventions }}
-                        />
+                        {privacyMode ? (
+                          <p className="text-sm text-muted-foreground">Oculto no modo privacidade.</p>
+                        ) : (
+                          <div
+                            className="text-sm leading-relaxed text-foreground prose prose-sm max-w-none dark:prose-invert"
+                            dangerouslySetInnerHTML={{ __html: selectedRecord.interventions }}
+                          />
+                        )}
                       </CardContent>
                     </Card>
                   )}
@@ -276,10 +301,14 @@ export default function ProntuariosPage() {
                         <CardTitle className="text-sm font-medium text-muted-foreground">Evolução do Quadro</CardTitle>
                       </CardHeader>
                       <CardContent>
-                        <div 
-                          className="text-sm leading-relaxed text-foreground prose prose-sm max-w-none dark:prose-invert"
-                          dangerouslySetInnerHTML={{ __html: selectedRecord.evolution }}
-                        />
+                        {privacyMode ? (
+                          <p className="text-sm text-muted-foreground">Oculto no modo privacidade.</p>
+                        ) : (
+                          <div
+                            className="text-sm leading-relaxed text-foreground prose prose-sm max-w-none dark:prose-invert"
+                            dangerouslySetInnerHTML={{ __html: selectedRecord.evolution }}
+                          />
+                        )}
                       </CardContent>
                     </Card>
                   )}
@@ -290,10 +319,14 @@ export default function ProntuariosPage() {
                         <CardTitle className="text-sm font-medium text-muted-foreground">Plano Terapêutico</CardTitle>
                       </CardHeader>
                       <CardContent>
-                        <div 
-                          className="text-sm leading-relaxed text-foreground prose prose-sm max-w-none dark:prose-invert"
-                          dangerouslySetInnerHTML={{ __html: selectedRecord.therapeutic_plan }}
-                        />
+                        {privacyMode ? (
+                          <p className="text-sm text-muted-foreground">Oculto no modo privacidade.</p>
+                        ) : (
+                          <div
+                            className="text-sm leading-relaxed text-foreground prose prose-sm max-w-none dark:prose-invert"
+                            dangerouslySetInnerHTML={{ __html: selectedRecord.therapeutic_plan }}
+                          />
+                        )}
                       </CardContent>
                     </Card>
                   )}
@@ -305,11 +338,17 @@ export default function ProntuariosPage() {
                       </CardHeader>
                       <CardContent>
                         <div className="space-y-2">
-                          <p className="text-sm font-medium">{selectedRecord.session_report.title}</p>
-                          <div 
-                            className="text-sm leading-relaxed text-muted-foreground prose prose-sm max-w-none dark:prose-invert"
-                            dangerouslySetInnerHTML={{ __html: selectedRecord.session_report.content }}
-                          />
+                          <p className="text-sm font-medium">
+                            {maskLongText(selectedRecord.session_report.title, privacyMode, 20)}
+                          </p>
+                          {privacyMode ? (
+                            <p className="text-sm text-muted-foreground">Oculto no modo privacidade.</p>
+                          ) : (
+                            <div
+                              className="text-sm leading-relaxed text-muted-foreground prose prose-sm max-w-none dark:prose-invert"
+                              dangerouslySetInnerHTML={{ __html: selectedRecord.session_report.content }}
+                            />
+                          )}
                         </div>
                       </CardContent>
                     </Card>

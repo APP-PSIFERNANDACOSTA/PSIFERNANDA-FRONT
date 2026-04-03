@@ -17,11 +17,14 @@ import { Cake, Loader2, Calendar, User, Mail, Phone, Gift } from "lucide-react"
 import patientService from "@/services/patient-service"
 import type { UpcomingBirthday } from "@/types/patient"
 import { showErrorToast } from "@/lib/toast-helpers"
+import { usePrivacyMode } from "@/contexts/privacy-mode-context"
+import { maskEmail, maskPatientName, maskPhone } from "@/lib/privacy-mask"
 import { cn } from "@/lib/utils"
 import { format, parseISO } from "date-fns"
 import { ptBR } from "date-fns/locale"
 
 export default function BirthdaysPage() {
+  const { privacyMode } = usePrivacyMode()
   const [days, setDays] = useState(60)
   const [items, setItems] = useState<UpcomingBirthday[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -117,7 +120,7 @@ export default function BirthdaysPage() {
                           href={`/dashboard/patients/${row.patient_id}`}
                           className="font-semibold text-foreground hover:underline truncate"
                         >
-                          {row.name}
+                          {maskPatientName(row.name, privacyMode)}
                         </Link>
                         {row.days_until === 0 ? (
                           <Badge className="bg-primary text-primary-foreground">Hoje</Badge>
@@ -141,13 +144,13 @@ export default function BirthdaysPage() {
                         {row.email && (
                           <span className="inline-flex items-center gap-1.5 truncate max-w-full">
                             <Mail className="h-3 w-3 shrink-0" />
-                            {row.email}
+                            {maskEmail(row.email, privacyMode)}
                           </span>
                         )}
                         {row.phone && (
                           <span className="inline-flex items-center gap-1.5">
                             <Phone className="h-3 w-3 shrink-0" />
-                            {row.phone}
+                            {maskPhone(row.phone, privacyMode)}
                           </span>
                         )}
                       </div>

@@ -1,6 +1,6 @@
 "use client"
 
-import { Bell, Search, Plus, Moon, Sun, LogOut, Menu, User } from "lucide-react"
+import { Bell, Search, Moon, Sun, LogOut, Menu, User, Eye, EyeOff } from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -13,6 +13,8 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { useState } from "react"
 import { useAuth } from "@/contexts/auth-context"
+import { usePrivacyMode } from "@/contexts/privacy-mode-context"
+import { maskEmail, maskPatientName } from "@/lib/privacy-mask"
 
 interface TopbarProps {
   onMenuClick: () => void
@@ -21,6 +23,7 @@ interface TopbarProps {
 export function Topbar({ onMenuClick }: TopbarProps) {
   const [isDark, setIsDark] = useState(false)
   const { logout, user } = useAuth()
+  const { privacyMode, togglePrivacyMode } = usePrivacyMode()
 
   const toggleTheme = () => {
     setIsDark(!isDark)
@@ -71,7 +74,17 @@ export function Topbar({ onMenuClick }: TopbarProps) {
 
       {/* Actions */}
       <div className="flex items-center gap-1 sm:gap-2">
-       
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={togglePrivacyMode}
+          className="h-9 w-9"
+          title={privacyMode ? "Mostrar dados sensíveis" : "Ocultar dados sensíveis"}
+          aria-pressed={privacyMode}
+          aria-label={privacyMode ? "Mostrar dados sensíveis" : "Ocultar dados sensíveis"}
+        >
+          {privacyMode ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+        </Button>
 
         <Button variant="ghost" size="icon" onClick={toggleTheme} className="h-9 w-9">
           {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
@@ -90,14 +103,16 @@ export function Topbar({ onMenuClick }: TopbarProps) {
                 <User className="h-4 w-4" />
               </div>
               <span className="hidden sm:block text-sm font-medium max-w-[120px] truncate">
-                {user?.name || "Usuário"}
+                {user?.name ? maskPatientName(user.name, privacyMode) : "Usuário"}
               </span>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
             <div className="px-2 py-1.5">
-              <p className="text-sm font-medium">{user?.name || "Usuário"}</p>
-              <p className="text-xs text-muted-foreground truncate">{user?.email || ""}</p>
+              <p className="text-sm font-medium">{user?.name ? maskPatientName(user.name, privacyMode) : "Usuário"}</p>
+              <p className="text-xs text-muted-foreground truncate">
+                {user?.email ? maskEmail(user.email, privacyMode) : ""}
+              </p>
             </div>
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>

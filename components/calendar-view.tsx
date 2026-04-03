@@ -45,6 +45,8 @@ import {
   saoPauloWallDateTimeToUtcIso,
   utcIsoToSaoPauloDateAndTime,
 } from "@/lib/session-datetime-br"
+import { usePrivacyMode } from "@/contexts/privacy-mode-context"
+import { maskEmail, maskPatientName } from "@/lib/privacy-mask"
 import { Loader2 } from "lucide-react"
 import {
   Dialog,
@@ -67,6 +69,10 @@ export function CalendarView({
   onMonthChange,
   sessionListSyncNonce = 0,
 }: CalendarViewProps) {
+  const { privacyMode } = usePrivacyMode()
+  const patientLabel = (name: string | undefined | null) =>
+    name ? maskPatientName(name, privacyMode) : "Sem paciente"
+
   const [currentDate, setCurrentDate] = useState(new Date())
   const [sessions, setSessions] = useState<Session[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -306,11 +312,11 @@ export function CalendarView({
                           className={`text-xs p-1 rounded cursor-pointer hover:opacity-90 transition-opacity truncate relative z-[1] border ${
                             SESSION_STATUS_COLORS[session.status]
                           }`}
-                          title={`${formatTime(session.session_date)} - ${session.patient?.name || "Sem paciente"} - ${SESSION_STATUS_LABELS[session.status]}`}
+                          title={`${formatTime(session.session_date)} - ${patientLabel(session.patient?.name)} - ${SESSION_STATUS_LABELS[session.status]}`}
                         >
                           <div className="font-medium">{formatTime(session.session_date)}</div>
                           <div className="truncate">
-                            Sessão: {session.patient?.name || "Sem paciente"}
+                            Sessão: {patientLabel(session.patient?.name)}
                           </div>
                         </div>
                       ))}
@@ -379,12 +385,12 @@ export function CalendarView({
                             <div className="flex items-center gap-2">
                               <User className="h-5 w-5 text-muted-foreground" />
                               <span className="font-semibold text-xl">
-                                {session.patient?.name || 'Sem paciente'}
+                                {patientLabel(session.patient?.name)}
                               </span>
                             </div>
                             {session.patient?.email && (
                               <div className="text-sm text-muted-foreground">
-                                {session.patient.email}
+                                {maskEmail(session.patient.email, privacyMode)}
                               </div>
                             )}
                             {session.notes && (
@@ -547,8 +553,12 @@ export function CalendarView({
                 {selectedSession.patient && (
                   <div className="flex items-center gap-2 text-sm">
                     <User className="h-4 w-4 text-muted-foreground" />
-                    <span className="font-medium">{selectedSession.patient.name}</span>
-                    <span className="text-muted-foreground">({selectedSession.patient.email})</span>
+                    <span className="font-medium">
+                      {maskPatientName(selectedSession.patient.name, privacyMode)}
+                    </span>
+                    <span className="text-muted-foreground">
+                      ({maskEmail(selectedSession.patient.email, privacyMode)})
+                    </span>
                   </div>
                 )}
                 

@@ -16,8 +16,11 @@ import patientService from "@/services/patient-service"
 import type { PatientNote } from "@/types/patient-note"
 import type { Patient } from "@/types/patient"
 import { showErrorToast } from "@/lib/toast-helpers"
+import { usePrivacyMode } from "@/contexts/privacy-mode-context"
+import { maskPatientName } from "@/lib/privacy-mask"
 
 export default function PatientNoteViewPage() {
+  const { privacyMode } = usePrivacyMode()
   const params = useParams()
   const router = useRouter()
   const patientId = Number(params.id)
@@ -70,7 +73,10 @@ export default function PatientNoteViewPage() {
               </h1>
               {patient && (
                 <p className="text-sm text-muted-foreground mt-1">
-                  Paciente: <span className="font-medium text-foreground">{patient.name}</span>
+                  Paciente:{" "}
+                  <span className="font-medium text-foreground">
+                    {maskPatientName(patient.name, privacyMode)}
+                  </span>
                 </p>
               )}
             </div>

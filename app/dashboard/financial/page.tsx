@@ -31,9 +31,12 @@ import { format, startOfMonth, endOfMonth, subMonths, startOfYear, endOfYear, ad
 import { ptBR } from "date-fns/locale"
 import { useRouter } from "next/navigation"
 import apiClient from "@/lib/api-client"
+import { usePrivacyMode } from "@/contexts/privacy-mode-context"
+import { maskLongText, maskMoneyBr, maskPatientName } from "@/lib/privacy-mask"
 
 export default function FinancialReportPage() {
   const router = useRouter()
+  const { privacyMode } = usePrivacyMode()
   const [payments, setPayments] = useState<Payment[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
@@ -155,6 +158,9 @@ export default function FinancialReportPage() {
       currency: 'BRL',
     }).format(Number(amount))
   }
+
+  const displayCurrency = (amount: string) =>
+    privacyMode ? maskMoneyBr(amount, true) : formatCurrency(amount)
 
   const countMonthlyDayOccurrencesInRange = (daysOfMonth: number[], start: Date, end: Date) => {
     const daySet = new Set(daysOfMonth)
@@ -356,7 +362,7 @@ export default function FinancialReportPage() {
                 <div>
                   <p className="text-sm font-medium text-gray-600">Média Semanal (estimada)</p>
                   <p className="text-3xl font-bold text-emerald-600 mt-1">
-                    {formatCurrency(projectedWeekly.toFixed(2))}
+                    {displayCurrency(projectedWeekly.toFixed(2))}
                   </p>
                 </div>
                 <div className="h-12 w-12 rounded-lg bg-emerald-100 flex items-center justify-center">
@@ -372,7 +378,7 @@ export default function FinancialReportPage() {
                 <div>
                   <p className="text-sm font-medium text-gray-600">Projeção Quinzenal (15 dias)</p>
                   <p className="text-3xl font-bold text-indigo-600 mt-1">
-                    {formatCurrency(projectedFortnight.toFixed(2))}
+                    {displayCurrency(projectedFortnight.toFixed(2))}
                   </p>
                 </div>
                 <div className="h-12 w-12 rounded-lg bg-indigo-100 flex items-center justify-center">
@@ -388,7 +394,7 @@ export default function FinancialReportPage() {
                 <div>
                   <p className="text-sm font-medium text-gray-600">Projeção Mensal (30 dias)</p>
                   <p className="text-3xl font-bold text-purple-600 mt-1">
-                    {formatCurrency(projectedMonthly.toFixed(2))}
+                    {displayCurrency(projectedMonthly.toFixed(2))}
                   </p>
                 </div>
                 <div className="h-12 w-12 rounded-lg bg-purple-100 flex items-center justify-center">
@@ -404,7 +410,7 @@ export default function FinancialReportPage() {
                 <div>
                   <p className="text-sm font-medium text-gray-600">Potencial do Mês (dia 1 ao fim)</p>
                   <p className="text-3xl font-bold text-teal-600 mt-1">
-                    {formatCurrency(projectedCurrentMonth.toFixed(2))}
+                    {displayCurrency(projectedCurrentMonth.toFixed(2))}
                   </p>
                 </div>
                 <div className="h-12 w-12 rounded-lg bg-teal-100 flex items-center justify-center">
@@ -426,7 +432,7 @@ export default function FinancialReportPage() {
                     <Loader2 className="h-8 w-8 animate-spin text-primary mt-2" />
                   ) : (
                     <p className="text-3xl font-bold text-green-600 mt-1">
-                      {formatCurrency(totalAmount.toFixed(2))}
+                      {displayCurrency(totalAmount.toFixed(2))}
                     </p>
                   )}
                 </div>
@@ -467,8 +473,8 @@ export default function FinancialReportPage() {
                   ) : (
                     <p className="text-3xl font-bold text-purple-600 mt-1">
                       {totalPayments > 0 
-                        ? formatCurrency((totalAmount / totalPayments).toFixed(2))
-                        : formatCurrency("0.00")}
+                        ? displayCurrency((totalAmount / totalPayments).toFixed(2))
+                        : displayCurrency("0.00")}
                     </p>
                   )}
                 </div>
@@ -497,7 +503,7 @@ export default function FinancialReportPage() {
                       {PAYMENT_METHOD_LABELS[method as keyof typeof PAYMENT_METHOD_LABELS]}
                     </Badge>
                     <p className="text-2xl font-bold text-gray-900 mt-2">
-                      {formatCurrency(data.total.toFixed(2))}
+                      {displayCurrency(data.total.toFixed(2))}
                     </p>
                     <p className="text-sm text-gray-600">
                       {data.count} {data.count === 1 ? 'pagamento' : 'pagamentos'}
@@ -545,7 +551,9 @@ export default function FinancialReportPage() {
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
                           <p className="font-medium text-gray-900">
-                            {payment.patient?.name || 'N/A'}
+                            {payment.patient?.name
+                              ? maskPatientName(payment.patient.name, privacyMode)
+                              : "N/A"}
                           </p>
                           <Badge
                             variant="outline"
@@ -564,14 +572,16 @@ export default function FinancialReportPage() {
                           )}
                         </div>
                         {payment.description && (
-                          <p className="text-sm text-gray-600 mt-1">{payment.description}</p>
+                          <p className="text-sm text-gray-600 mt-1">
+                            {maskLongText(payment.description ?? "", privacyMode, 20)}
+                          </p>
                         )}
                       </div>
                     </div>
                     <div className="flex items-center justify-between gap-3 md:justify-end md:min-w-[180px]">
                       <div className="text-right">
                         <p className="text-lg font-bold text-green-600">
-                          {formatCurrency(payment.amount)}
+                          {displayCurrency(payment.amount)}
                         </p>
                       </div>
                       {payment.pdf_path && (

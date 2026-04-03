@@ -25,6 +25,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { usePrivacyMode } from "@/contexts/privacy-mode-context"
+import { maskMoneyBr } from "@/lib/privacy-mask"
 
 type RecurrenceType = "weekly" | "biweekly" | "monthly"
 
@@ -35,6 +37,7 @@ interface PatientSessionsProps {
 }
 
 export function PatientSessions({ patientId, patientName, priceSession }: PatientSessionsProps) {
+  const { privacyMode } = usePrivacyMode()
   const router = useRouter()
   const [sessions, setSessions] = useState<Session[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -509,7 +512,8 @@ export function PatientSessions({ patientId, patientName, priceSession }: Patien
                   
                   {priceSession && (
                     <div className="text-sm text-muted-foreground bg-blue-50 p-3 rounded-md border border-blue-200">
-                      💰 <strong>Valor da sessão:</strong> R$ {Number(priceSession).toFixed(2)} (valor padrão do paciente)
+                      💰 <strong>Valor da sessão:</strong> {maskMoneyBr(priceSession, privacyMode)} (valor padrão do
+                      paciente)
                     </div>
                   )}
                   

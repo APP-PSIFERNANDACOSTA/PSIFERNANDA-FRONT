@@ -14,11 +14,14 @@ import diaryService from "@/services/diary-service"
 import type { DiaryEntry } from "@/types/diary"
 import { MOOD_OPTIONS } from "@/types/diary"
 import { showErrorToast } from "@/lib/toast-helpers"
+import { usePrivacyMode } from "@/contexts/privacy-mode-context"
+import { maskPatientName } from "@/lib/privacy-mask"
 
 export default function DiaryEntryPage() {
   const params = useParams()
   const router = useRouter()
   const entryId = Number(params.id)
+  const { privacyMode } = usePrivacyMode()
   
   const [entry, setEntry] = useState<DiaryEntry | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -113,7 +116,10 @@ export default function DiaryEntryPage() {
                   <FileText className="h-5 w-5 text-pink-600" />
                 </div>
                 <h1 className="text-2xl font-bold text-gray-900 break-words">
-                  Análise Clínica - {entry.patient?.name || "Paciente"}
+                  Análise Clínica -{" "}
+                  {entry.patient?.name
+                    ? maskPatientName(entry.patient.name, privacyMode)
+                    : "Paciente"}
                 </h1>
               </div>
               <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600">
@@ -199,7 +205,11 @@ export default function DiaryEntryPage() {
               <CardContent className="space-y-2 text-sm">
                 <div className="flex justify-between gap-2">
                   <span className="text-blue-600 whitespace-nowrap">Nome:</span>
-                  <span className="font-medium text-blue-800 text-right break-words">{entry.patient?.name || "N/A"}</span>
+                  <span className="font-medium text-blue-800 text-right break-words">
+                    {entry.patient?.name
+                      ? maskPatientName(entry.patient.name, privacyMode)
+                      : "N/A"}
+                  </span>
                 </div>
                 <div className="flex justify-between gap-2">
                   <span className="text-blue-600 whitespace-nowrap">ID:</span>

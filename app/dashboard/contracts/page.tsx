@@ -12,9 +12,12 @@ import contractService from "@/services/contract-service"
 import type { Contract, ContractStatus } from "@/types/contract"
 import { CONTRACT_STATUS_LABELS } from "@/types/contract"
 import { showErrorToast, showSuccessToast } from "@/lib/toast-helpers"
+import { usePrivacyMode } from "@/contexts/privacy-mode-context"
+import { maskMoneyBr, maskPatientName } from "@/lib/privacy-mask"
 
 export default function ContractsPage() {
   const router = useRouter()
+  const { privacyMode } = usePrivacyMode()
   const [contracts, setContracts] = useState<Contract[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<ContractStatus | 'all'>('pending')
@@ -122,8 +125,11 @@ export default function ContractsPage() {
   }
 
   const formatPrice = (price: string) => {
-    return `R$ ${Number(price).toFixed(2).replace('.', ',')}`
+    return `R$ ${Number(price).toFixed(2).replace(".", ",")}`
   }
+
+  const displayPrice = (price: string) =>
+    privacyMode ? maskMoneyBr(price, true) : formatPrice(price)
 
   const getPaymentTypeLabel = (type: string) => {
     switch (type) {
@@ -224,7 +230,7 @@ export default function ContractsPage() {
                             </div>
                             <div>
                               <p className="text-xs sm:text-sm font-medium text-gray-500">Valor da Sessão</p>
-                              <p className="text-sm sm:text-base text-gray-900">{formatPrice(contract.price_session)}</p>
+                              <p className="text-sm sm:text-base text-gray-900">{displayPrice(contract.price_session)}</p>
                             </div>
                             <div>
                               <p className="text-xs sm:text-sm font-medium text-gray-500">Data de Criação</p>
@@ -235,7 +241,9 @@ export default function ContractsPage() {
                           {contract.patient && (
                             <div className="mb-3 sm:mb-4">
                               <p className="text-xs sm:text-sm font-medium text-gray-500">Paciente</p>
-                              <p className="text-sm sm:text-base text-gray-900 break-words">{contract.patient.name}</p>
+                              <p className="text-sm sm:text-base text-gray-900 break-words">
+                                {maskPatientName(contract.patient.name, privacyMode)}
+                              </p>
                             </div>
                           )}
 

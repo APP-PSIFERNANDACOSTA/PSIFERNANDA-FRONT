@@ -23,6 +23,8 @@ import {
 import { quizService } from "@/services/quiz-service"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { usePrivacyMode } from "@/contexts/privacy-mode-context"
+import { maskEmail, maskPatientName } from "@/lib/privacy-mask"
 
 interface PatientResponsesPageProps {
   params: {
@@ -34,6 +36,7 @@ interface PatientResponsesPageProps {
 export default function PatientResponsesPage({ params }: PatientResponsesPageProps) {
   const resolvedParams = use(params)
   const router = useRouter()
+  const { privacyMode } = usePrivacyMode()
   const quizId = parseInt(resolvedParams.id)
   const patientId = parseInt(resolvedParams.patientId)
 
@@ -203,7 +206,8 @@ export default function PatientResponsesPage({ params }: PatientResponsesPagePro
             <div>
               <h1 className="text-3xl font-bold text-foreground">Respostas do Paciente</h1>
               <p className="mt-2 text-muted-foreground">
-                Visualizando respostas de {patient?.name || 'Paciente'} para esta avaliação
+                Visualizando respostas de{" "}
+                {patient?.name ? maskPatientName(patient.name, privacyMode) : "Paciente"} para esta avaliação
               </p>
             </div>
           </div>
@@ -221,11 +225,15 @@ export default function PatientResponsesPage({ params }: PatientResponsesPagePro
             <div className="grid gap-4 md:grid-cols-2">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Nome</p>
-                <p className="font-medium">{patient?.name || 'N/A'}</p>
+                <p className="font-medium">
+                  {patient?.name ? maskPatientName(patient.name, privacyMode) : "N/A"}
+                </p>
               </div>
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Email</p>
-                <p className="font-medium">{patient?.email || 'N/A'}</p>
+                <p className="font-medium">
+                  {patient?.email ? maskEmail(patient.email, privacyMode) : "N/A"}
+                </p>
               </div>
             </div>
           </CardContent>

@@ -19,9 +19,12 @@ import type { CreatePaymentData, PaymentMethod } from "@/types/payment"
 import type { Patient } from "@/types/patient"
 import { PAYMENT_METHOD_LABELS } from "@/types/payment"
 import { showErrorToast, showSuccessToast } from "@/lib/toast-helpers"
+import { usePrivacyMode } from "@/contexts/privacy-mode-context"
+import { maskEmail, maskPatientName } from "@/lib/privacy-mask"
 
 export default function CreatePaymentPage() {
   const router = useRouter()
+  const { privacyMode } = usePrivacyMode()
   const [isLoading, setIsLoading] = useState(false)
   const [isLoadingPatients, setIsLoadingPatients] = useState(true)
   const [patients, setPatients] = useState<Patient[]>([])
@@ -146,7 +149,10 @@ export default function CreatePaymentPage() {
                         className="w-full justify-between"
                       >
                         {formData.patient_id
-                          ? patients.find((patient) => patient.id === formData.patient_id)?.name || "Selecione um paciente"
+                          ? (() => {
+                              const p = patients.find((x) => x.id === formData.patient_id)
+                              return p ? maskPatientName(p.name, privacyMode) : "Selecione um paciente"
+                            })()
                           : "Selecione um paciente"}
                         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                       </Button>
@@ -173,9 +179,13 @@ export default function CreatePaymentPage() {
                                   )}
                                 />
                                 <div className="flex flex-col">
-                                  <span className="font-medium">{patient.name}</span>
+                                  <span className="font-medium">
+                                    {maskPatientName(patient.name, privacyMode)}
+                                  </span>
                                   {patient.email && (
-                                    <span className="text-sm text-muted-foreground">{patient.email}</span>
+                                    <span className="text-sm text-muted-foreground">
+                                      {maskEmail(patient.email, privacyMode)}
+                                    </span>
                                   )}
                                 </div>
                               </CommandItem>
