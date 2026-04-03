@@ -14,7 +14,11 @@ import type { Session, CreateSessionData, SessionStatus } from "@/types/session"
 import { SESSION_STATUS_LABELS, SESSION_STATUS_COLORS } from "@/types/session"
 import { showSuccessToast, showErrorToast } from "@/lib/toast-helpers"
 import { Loader2 } from "lucide-react"
-import { addMonths } from "date-fns"
+import { addDays, addMonths } from "date-fns"
+import {
+  sessionDateTimeToApiIso,
+  utcIsoToSaoPauloDateAndTime,
+} from "@/lib/session-datetime-br"
 import {
   Dialog,
   DialogContent,
@@ -189,35 +193,24 @@ export function PatientSessions({ patientId, patientName, priceSession }: Patien
 
       let sessionsToSend = [...sessionsToCreate]
 
-      // Recorrência: semanal (7 dias), quinzenal (15 dias) ou mensal
+      // Recorrência: semanal (7 dias), quinzenal (15 dias) ou mensal (instantes em UTC)
       if (isRecurring && sessionsToCreate.length > 0) {
         const baseSession = sessionsToCreate[0]
         if (baseSession.session_date) {
-          const baseDate = new Date(baseSession.session_date)
-
-          const formatDateTimeLocal = (d: Date) => {
-            const year = d.getFullYear()
-            const month = String(d.getMonth() + 1).padStart(2, "0")
-            const day = String(d.getDate()).padStart(2, "0")
-            const hours = String(d.getHours()).padStart(2, "0")
-            const minutes = String(d.getMinutes()).padStart(2, "0")
-            return `${year}-${month}-${day}T${hours}:${minutes}`
-          }
+          const baseDate = new Date(sessionDateTimeToApiIso(baseSession.session_date))
 
           for (let i = 1; i < recurrenceCount; i++) {
             let nextDate: Date
             if (recurrenceType === "weekly") {
-              nextDate = new Date(baseDate)
-              nextDate.setDate(nextDate.getDate() + i * 7)
+              nextDate = addDays(baseDate, i * 7)
             } else if (recurrenceType === "biweekly") {
-              nextDate = new Date(baseDate)
-              nextDate.setDate(nextDate.getDate() + i * 15)
+              nextDate = addDays(baseDate, i * 15)
             } else {
               nextDate = addMonths(baseDate, i)
             }
 
             sessionsToSend.push({
-              session_date: formatDateTimeLocal(nextDate),
+              session_date: nextDate.toISOString(),
               duration: baseSession.duration || null,
               notes: baseSession.notes || null,
               status: baseSession.status || "scheduled",
@@ -226,8 +219,13 @@ export function PatientSessions({ patientId, patientName, priceSession }: Patien
         }
       }
 
+      const sessionsNormalized = sessionsToSend.map((s) => ({
+        ...s,
+        session_date: sessionDateTimeToApiIso(s.session_date),
+      }))
+
       await sessionService.createSessions(patientId, {
-        sessions: sessionsToSend
+        sessions: sessionsNormalized,
       })
 
       const recurrenceLabel =
@@ -238,7 +236,7 @@ export function PatientSessions({ patientId, patientName, priceSession }: Patien
             : "mensal"
       showSuccessToast(
         "Sessões criadas",
-        `${sessionsToSend.length} sessão(ões) criada(s) com sucesso${isRecurring ? ` (recorrência ${recurrenceLabel})` : ""}`
+        `${sessionsNormalized.length} sessão(ões) criada(s) com sucesso${isRecurring ? ` (recorrência ${recurrenceLabel})` : ""}`
       )
       
       // Resetar formulário
@@ -310,15 +308,9 @@ export function PatientSessions({ patientId, patientName, priceSession }: Patien
   }
 
   const handleOpenReschedule = (session: Session) => {
-    // Formatar data para datetime-local
-    const date = new Date(session.session_date)
-    const year = date.getFullYear()
-    const month = String(date.getMonth() + 1).padStart(2, '0')
-    const day = String(date.getDate()).padStart(2, '0')
-    const hours = String(date.getHours()).padStart(2, '0')
-    const minutes = String(date.getMinutes()).padStart(2, '0')
-    const formattedDate = `${year}-${month}-${day}T${hours}:${minutes}`
-    
+    const { date, time } = utcIsoToSaoPauloDateAndTime(session.session_date)
+    const formattedDate = `${date}T${time}`
+
     setSessionToReschedule(session)
     setRescheduleData({
       session_date: formattedDate,
@@ -338,7 +330,7 @@ export function PatientSessions({ patientId, patientName, priceSession }: Patien
     setIsRescheduling(true)
     try {
       await sessionService.reschedule(patientId, sessionToReschedule.id, {
-        session_date: rescheduleData.session_date,
+        session_date: sessionDateTimeToApiIso(rescheduleData.session_date),
         duration: rescheduleData.duration || null,
         notes: rescheduleData.notes || null,
       })
@@ -818,7 +810,7 @@ export function PatientSessions({ patientId, patientName, priceSession }: Patien
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="reschedule_date">Nova Data e Hora *</Label>
+              <Label htmlFor="reschedule_date">Nova Data e Hora * (horário de Brasília)</Label>
               <Input
                 id="reschedule_date"
                 type="datetime-local"
@@ -829,6 +821,9 @@ export function PatientSessions({ patientId, patientName, priceSession }: Patien
                 })}
                 required
               />
+              <p className="text-xs text-muted-foreground">
+                O valor é interpretado como fuso de Brasília, independente do seu navegador (ex.: Portugal).
+              </p>
             </div>
 
             <div className="space-y-2">

@@ -72,6 +72,23 @@ class GoogleOAuthService {
       })),
     });
   }
+
+  /**
+   * Cria no Google Calendar eventos para sessões locais que ainda não têm vínculo (google_event_id).
+   */
+  async pushSessionsToCalendar(): Promise<PushSessionsToCalendarResponse> {
+    return apiClient.post<PushSessionsToCalendarResponse>('/google/calendar/push-sessions', {});
+  }
+}
+
+export interface PushSessionsToCalendarResponse {
+  success: boolean;
+  message?: string;
+  created?: number;
+  skipped_already_linked?: number;
+  examined?: number;
+  failed?: number;
+  errors?: Array<{ session_id: number; message: string }>;
 }
 
 export interface GoogleCalendarEvent {

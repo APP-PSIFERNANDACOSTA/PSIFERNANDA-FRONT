@@ -48,6 +48,10 @@ export interface ContractResponse {
   message?: string;
   /** Presente em GET público por token quando o contrato já está vinculado a um paciente */
   is_existing_patient?: boolean;
+  /** E-mail do psicólogo(a): usado na página pública para validar antes do envio */
+  psychologist_email?: string | null;
+  /** CPF do psicólogo(a): usado na página pública para validar antes do envio */
+  psychologist_cpf?: string | null;
 }
 
 export interface ContractsResponse {

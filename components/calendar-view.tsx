@@ -1,13 +1,14 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, User, CheckCircle2, CalendarClock, Trash2, AlertCircle, X, Save, Video, ExternalLink } from "lucide-react"
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, startOfWeek, endOfWeek } from "date-fns"
+import { Textarea } from "@/components/ui/textarea"
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, User, CheckCircle2, Trash2, AlertCircle, X, Save, Video, ExternalLink, Pencil } from "lucide-react"
+import { format, addMonths, subMonths } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import type { Session, SessionStatus } from "@/types/session"
 import { SESSION_STATUS_LABELS, SESSION_STATUS_COLORS } from "@/types/session"
@@ -31,6 +32,19 @@ const DEFAULT_GOOGLE_COLOR = { bg: "#F6BF26", text: "#1a1a1a", border: "#d4a01f"
 import sessionService from "@/services/session-service"
 import { useAutoRefresh } from "@/hooks/use-auto-refresh"
 import { showErrorToast, showSuccessToast } from "@/lib/toast-helpers"
+import {
+  buildSaoPauloCalendarDays,
+  formatBrazilCalendarDayNumber,
+  formatSessionInstantInLocalTimezone,
+  formatSessionInstantInSaoPaulo,
+  getBrazilWallDateKey,
+  getSaoPauloTodayNoonDate,
+  isSaoPauloWallMonthEqual,
+  isSameSaoPauloCalendarDay,
+  saoPauloMonthRangeUtcIso,
+  saoPauloWallDateTimeToUtcIso,
+  utcIsoToSaoPauloDateAndTime,
+} from "@/lib/session-datetime-br"
 import { Loader2 } from "lucide-react"
 import {
   Dialog,
@@ -43,9 +57,16 @@ interface CalendarViewProps {
   onSessionClick?: (session: Session) => void
   googleEvents?: GoogleCalendarEvent[]
   onMonthChange?: (date: Date) => void
+  /** Incrementar para forçar recarregar sessões do mês (ex.: após envio ao Google). */
+  sessionListSyncNonce?: number
 }
 
-export function CalendarView({ onSessionClick, googleEvents = [], onMonthChange }: CalendarViewProps) {
+export function CalendarView({
+  onSessionClick,
+  googleEvents = [],
+  onMonthChange,
+  sessionListSyncNonce = 0,
+}: CalendarViewProps) {
   const [currentDate, setCurrentDate] = useState(new Date())
   const [sessions, setSessions] = useState<Session[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -58,19 +79,36 @@ export function CalendarView({ onSessionClick, googleEvents = [], onMonthChange 
   const [selectedDay, setSelectedDay] = useState<Date | null>(null)
   const [showTodayList, setShowTodayList] = useState(false)
   const [viewMode, setViewMode] = useState<'calendar' | 'list'>('calendar')
-  const [showRescheduleForm, setShowRescheduleForm] = useState(false)
-  const [rescheduleDate, setRescheduleDate] = useState<string>("")
-  const [rescheduleTime, setRescheduleTime] = useState<string>("")
-  const [rescheduleDuration, setRescheduleDuration] = useState<number | null>(null)
+  const [showSessionEditForm, setShowSessionEditForm] = useState(false)
+  const [editSessionDate, setEditSessionDate] = useState<string>("")
+  const [editSessionTime, setEditSessionTime] = useState<string>("")
+  const [editSessionDuration, setEditSessionDuration] = useState<number | null>(null)
+  const [editSessionNotes, setEditSessionNotes] = useState<string>("")
+
+  const openSessionEditForm = (session: Session) => {
+    const { date, time } = utcIsoToSaoPauloDateAndTime(session.session_date)
+    setEditSessionDate(date)
+    setEditSessionTime(time)
+    setEditSessionDuration(session.duration)
+    setEditSessionNotes(session.notes ?? "")
+    setShowSessionEditForm(true)
+  }
+
+  const resetSessionEditForm = () => {
+    setShowSessionEditForm(false)
+    setEditSessionDate("")
+    setEditSessionTime("")
+    setEditSessionDuration(null)
+    setEditSessionNotes("")
+  }
 
   const loadSessionsForCurrentMonth = async () => {
     setIsLoading(true)
     try {
-      const start = startOfMonth(currentDate)
-      const end = endOfMonth(currentDate)
+      const { start, end } = saoPauloMonthRangeUtcIso(currentDate)
       const data = await sessionService.getAllSessions({
-        start_date: start.toISOString(),
-        end_date: end.toISOString(),
+        start_date: start,
+        end_date: end,
       })
       setSessions(data)
     } catch (error: any) {
@@ -90,24 +128,38 @@ export function CalendarView({ onSessionClick, googleEvents = [], onMonthChange 
     onMonthChange?.(currentDate)
   }, [currentDate])
 
-  const monthStart = startOfMonth(currentDate)
-  const monthEnd = endOfMonth(currentDate)
-  const calendarStart = startOfWeek(monthStart, { weekStartsOn: 0 })
-  const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 0 })
+  useEffect(() => {
+    if (sessionListSyncNonce > 0) {
+      loadSessionsForCurrentMonth()
+    }
+  }, [sessionListSyncNonce])
 
-  const days = eachDayOfInterval({ start: calendarStart, end: calendarEnd })
+  const days = useMemo(
+    () => buildSaoPauloCalendarDays(currentDate),
+    [currentDate]
+  )
+
+  const todayBrazilDateKey = getBrazilWallDateKey(getSaoPauloTodayNoonDate())
+
+  /** Não mostrar no calendário eventos do Google que já têm sessão vinculada (evita “dois” blocos). */
+  const linkedGoogleEventIds = useMemo(
+    () =>
+      new Set(
+        sessions
+          .map((s) => s.google_event_id)
+          .filter((id): id is string => typeof id === "string" && id.length > 0)
+      ),
+    [sessions]
+  )
 
   const getSessionsForDay = (day: Date) => {
-    return sessions.filter(session => {
-      const sessionDate = new Date(session.session_date)
-      return isSameDay(sessionDate, day)
-    })
+    return sessions.filter((session) => isSameSaoPauloCalendarDay(session.session_date, day))
   }
 
   const getGoogleEventsForDay = (day: Date) => {
-    return googleEvents.filter(ev => {
-      const evStart = new Date(ev.start)
-      return isSameDay(evStart, day)
+    return googleEvents.filter((ev) => {
+      if (linkedGoogleEventIds.has(ev.id)) return false
+      return isSameSaoPauloCalendarDay(ev.start, day)
     })
   }
 
@@ -122,34 +174,29 @@ export function CalendarView({ onSessionClick, googleEvents = [], onMonthChange 
   }
 
   const today = () => {
-    const todayDate = new Date()
-    const todayDay = new Date(todayDate.getFullYear(), todayDate.getMonth(), todayDate.getDate(), 0, 0, 0, 0)
-    
-    // Atualizar todos os estados
-    setCurrentDate(new Date(todayDate.getTime()))
-    setSelectedDay(todayDay)
+    const todayAnchor = getSaoPauloTodayNoonDate()
+    setCurrentDate(new Date(todayAnchor.getTime()))
+    setSelectedDay(new Date(todayAnchor.getTime()))
     setShowTodayList(true)
-    setViewMode('list') // Mudar para visualização de lista
+    setViewMode("list")
   }
 
   const getSessionsForSelectedDay = () => {
     if (!selectedDay) return []
-    const selectedDayOnly = new Date(
-      selectedDay.getFullYear(),
-      selectedDay.getMonth(),
-      selectedDay.getDate()
-    )
-    return sessions.filter(session => {
-      const sessionDate = new Date(session.session_date)
-      return isSameDay(sessionDate, selectedDayOnly)
-    }).sort((a, b) => {
+    return sessions.filter((session) =>
+      isSameSaoPauloCalendarDay(session.session_date, selectedDay)
+    ).sort((a, b) => {
       return new Date(a.session_date).getTime() - new Date(b.session_date).getTime()
     })
   }
 
   const getGoogleEventsForSelectedDay = () => {
     if (!selectedDay) return []
-    return googleEvents.filter(ev => isSameDay(new Date(ev.start), selectedDay))
+    return googleEvents
+      .filter((ev) => {
+        if (linkedGoogleEventIds.has(ev.id)) return false
+        return isSameSaoPauloCalendarDay(ev.start, selectedDay)
+      })
       .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime())
   }
 
@@ -159,8 +206,7 @@ export function CalendarView({ onSessionClick, googleEvents = [], onMonthChange 
   }
 
   const formatTime = (dateString: string) => {
-    const date = new Date(dateString)
-    return format(date, "HH:mm", { locale: ptBR })
+    return formatSessionInstantInLocalTimezone(dateString, "HH:mm")
   }
 
   const weekDays = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
@@ -173,8 +219,8 @@ export function CalendarView({ onSessionClick, googleEvents = [], onMonthChange 
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2">
               <CalendarIcon className="h-5 w-5" />
-              {viewMode === 'list' && selectedDay
-                ? `Sessões de ${format(selectedDay, "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR })}`
+              {viewMode === "list" && selectedDay
+                ? `Sessões de ${formatSessionInstantInSaoPaulo(selectedDay.toISOString(), "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR })}`
                 : format(currentDate, "MMMM yyyy", { locale: ptBR })}
             </CardTitle>
             <div className="flex gap-2">
@@ -216,22 +262,27 @@ export function CalendarView({ onSessionClick, googleEvents = [], onMonthChange 
               {days.map((day, index) => {
                 const daySessions = getSessionsForDay(day)
                 const dayGoogleEvents = getGoogleEventsForDay(day)
-                const isCurrentMonth = isSameMonth(day, currentDate)
-                const isToday = isSameDay(day, new Date())
+                const isCurrentMonth = isSaoPauloWallMonthEqual(
+                  day,
+                  currentDate.getFullYear(),
+                  currentDate.getMonth()
+                )
+                const isToday = getBrazilWallDateKey(day) === todayBrazilDateKey
+                const isSelectedDay =
+                  selectedDay !== null && getBrazilWallDateKey(day) === getBrazilWallDateKey(selectedDay)
 
                 return (
                   <div
                     key={index}
                     onClick={() => {
-                      const dayOnly = new Date(day.getFullYear(), day.getMonth(), day.getDate(), 0, 0, 0, 0)
-                      setSelectedDay(dayOnly)
+                      setSelectedDay(new Date(day.getTime()))
                       setShowTodayList(true)
-                      setViewMode('list')
+                      setViewMode("list")
                     }}
                     className={`min-h-[120px] bg-white p-2 border-b border-r border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors ${
                       !isCurrentMonth ? "bg-gray-50 text-gray-400" : ""
                     } ${isToday ? "bg-blue-50 border-blue-300 border-2" : ""} ${
-                      selectedDay && isSameDay(day, selectedDay) ? "ring-2 ring-primary" : ""
+                      isSelectedDay ? "ring-2 ring-primary" : ""
                     }`}
                   >
                     <div
@@ -239,7 +290,7 @@ export function CalendarView({ onSessionClick, googleEvents = [], onMonthChange 
                         isToday ? "text-blue-600 font-bold" : isCurrentMonth ? "text-gray-900" : "text-gray-400"
                       }`}
                     >
-                      {format(day, "d")}
+                      {formatBrazilCalendarDayNumber(day)}
                     </div>
                     <div className="space-y-1">
                       {daySessions.slice(0, 3).map((session) => (
@@ -247,17 +298,20 @@ export function CalendarView({ onSessionClick, googleEvents = [], onMonthChange 
                           key={session.id}
                           onClick={(e) => {
                             e.stopPropagation()
+                            resetSessionEditForm()
                             setSelectedSession(session)
                             setIsModalOpen(true)
                             onSessionClick?.(session)
                           }}
-                          className={`text-xs p-1 rounded cursor-pointer hover:opacity-80 transition-opacity truncate ${
+                          className={`text-xs p-1 rounded cursor-pointer hover:opacity-90 transition-opacity truncate relative z-[1] border ${
                             SESSION_STATUS_COLORS[session.status]
                           }`}
-                          title={`${formatTime(session.session_date)} - ${session.patient?.name || 'Sem paciente'} - ${SESSION_STATUS_LABELS[session.status]}`}
+                          title={`${formatTime(session.session_date)} - ${session.patient?.name || "Sem paciente"} - ${SESSION_STATUS_LABELS[session.status]}`}
                         >
                           <div className="font-medium">{formatTime(session.session_date)}</div>
-                          <div className="truncate">{session.patient?.name || 'Sem paciente'}</div>
+                          <div className="truncate">
+                            Sessão: {session.patient?.name || "Sem paciente"}
+                          </div>
                         </div>
                       ))}
                       {dayGoogleEvents.slice(0, 3 - daySessions.length).map((ev) => (
@@ -268,11 +322,11 @@ export function CalendarView({ onSessionClick, googleEvents = [], onMonthChange 
                             setSelectedGoogleEvent(ev)
                             setIsGoogleEventModalOpen(true)
                           }}
-                          className="text-xs p-1 rounded truncate border cursor-pointer hover:opacity-90 transition-opacity"
+                          className="text-xs p-1 rounded truncate border cursor-pointer hover:opacity-90 transition-opacity relative z-0"
                           style={getGoogleEventStyle(ev)}
-                          title={`${format(new Date(ev.start), 'HH:mm')} - ${ev.summary} (Google) - Clique para ver detalhes`}
+                          title={`${formatSessionInstantInLocalTimezone(ev.start, "HH:mm")} - ${ev.summary} (Google) - Clique para ver detalhes`}
                         >
-                          <div className="font-medium">{format(new Date(ev.start), 'HH:mm', { locale: ptBR })}</div>
+                          <div className="font-medium">{formatSessionInstantInLocalTimezone(ev.start, "HH:mm")}</div>
                           <div className="truncate">{ev.summary}</div>
                         </div>
                       ))}
@@ -302,6 +356,7 @@ export function CalendarView({ onSessionClick, googleEvents = [], onMonthChange 
                     key={session.id}
                     className="cursor-pointer hover:shadow-md transition-shadow"
                     onClick={() => {
+                      resetSessionEditForm()
                       setSelectedSession(session)
                       setIsModalOpen(true)
                       onSessionClick?.(session)
@@ -339,10 +394,28 @@ export function CalendarView({ onSessionClick, googleEvents = [], onMonthChange 
                             )}
                           </div>
                         </div>
-                        <div className="flex flex-col items-end gap-2">
+                        <div className="flex flex-col items-end gap-2 shrink-0">
                           <Badge className={SESSION_STATUS_COLORS[session.status]}>
                             {SESSION_STATUS_LABELS[session.status]}
                           </Badge>
+                          {(session.status === "scheduled" || session.status === "rescheduled") && (
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              size="sm"
+                              className="gap-1.5"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setSelectedSession(session)
+                                setIsModalOpen(true)
+                                openSessionEditForm(session)
+                                onSessionClick?.(session)
+                              }}
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                              Editar
+                            </Button>
+                          )}
                         </div>
                       </div>
                     </CardContent>
@@ -390,16 +463,15 @@ export function CalendarView({ onSessionClick, googleEvents = [], onMonthChange 
         setIsModalOpen(open)
         if (!open) {
           setSelectedSession(null)
-          setShowRescheduleForm(false)
-          setRescheduleDate("")
-          setRescheduleTime("")
-          setRescheduleDuration(null)
+          resetSessionEditForm()
           setIsUpdatingStatus(false)
         }
       }}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Detalhes da Sessão</DialogTitle>
+            <DialogTitle>
+              {showSessionEditForm ? "Editar sessão" : "Detalhes da Sessão"}
+            </DialogTitle>
           </DialogHeader>
           {selectedSession && (
             <div className="space-y-4">
@@ -451,11 +523,25 @@ export function CalendarView({ onSessionClick, googleEvents = [], onMonthChange 
               </div>
               
               <div className="space-y-3">
-                <div className="flex items-center gap-2 text-sm">
-                  <CalendarIcon className="h-4 w-4 text-muted-foreground" />
-                  <span className="font-medium">
-                    {format(new Date(selectedSession.session_date), "EEEE, dd 'de' MMMM 'de' yyyy 'às' HH:mm", { locale: ptBR })}
-                  </span>
+                <div className="flex flex-col gap-0.5 text-sm">
+                  <div className="flex items-center gap-2">
+                    <CalendarIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    <span className="font-medium">
+                      {formatSessionInstantInLocalTimezone(
+                        selectedSession.session_date,
+                        "EEEE, dd 'de' MMMM 'de' yyyy 'às' HH:mm",
+                        { locale: ptBR }
+                      )}
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground pl-6">
+                    Brasília:{" "}
+                    {formatSessionInstantInSaoPaulo(
+                      selectedSession.session_date,
+                      "dd/MM/yyyy HH:mm",
+                      { locale: ptBR }
+                    )}
+                  </p>
                 </div>
                 
                 {selectedSession.patient && (
@@ -545,20 +631,11 @@ export function CalendarView({ onSessionClick, googleEvents = [], onMonthChange 
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => {
-                        if (selectedSession) {
-                          // Inicializar valores do formulário com a data/hora atual da sessão
-                          const sessionDate = new Date(selectedSession.session_date)
-                          setRescheduleDate(format(sessionDate, 'yyyy-MM-dd'))
-                          setRescheduleTime(format(sessionDate, 'HH:mm'))
-                          setRescheduleDuration(selectedSession.duration)
-                          setShowRescheduleForm(true)
-                        }
-                      }}
+                      onClick={() => selectedSession && openSessionEditForm(selectedSession)}
                       className="gap-2"
                     >
-                      <CalendarClock className="h-4 w-4" />
-                      Remarcar
+                      <Pencil className="h-4 w-4" />
+                      Editar sessão
                     </Button>
                   </>
                 )}
@@ -576,127 +653,113 @@ export function CalendarView({ onSessionClick, googleEvents = [], onMonthChange 
                 )}
               </div>
 
-              {/* Formulário de Remarcação */}
-              {showRescheduleForm && selectedSession && (
+              {/* Formulário de edição (data, hora BR, duração, notas → Google) */}
+              {showSessionEditForm && selectedSession && (
                 <div className="mt-4 p-4 border-2 border-primary/20 rounded-lg bg-primary/5">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="font-semibold text-lg flex items-center gap-2">
-                      <CalendarClock className="h-5 w-5 text-primary" />
-                      Remarcar Sessão
+                      <Pencil className="h-5 w-5 text-primary" />
+                      Editar sessão
                     </h3>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setShowRescheduleForm(false)
-                        setRescheduleDate("")
-                        setRescheduleTime("")
-                        setRescheduleDuration(null)
-                      }}
-                    >
+                    <Button variant="ghost" size="sm" onClick={resetSessionEditForm}>
                       <X className="h-4 w-4" />
                     </Button>
                   </div>
 
                   <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label htmlFor="reschedule-date">Nova Data *</Label>
+                        <Label htmlFor="edit-session-date">Data * (Brasília)</Label>
                         <Input
-                          id="reschedule-date"
+                          id="edit-session-date"
                           type="date"
-                          value={rescheduleDate}
-                          onChange={(e) => setRescheduleDate(e.target.value)}
-                          min={format(new Date(), 'yyyy-MM-dd')}
+                          value={editSessionDate}
+                          onChange={(e) => setEditSessionDate(e.target.value)}
                           required
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="reschedule-time">Novo Horário *</Label>
+                        <Label htmlFor="edit-session-time">Horário * (Brasília)</Label>
                         <Input
-                          id="reschedule-time"
+                          id="edit-session-time"
                           type="time"
-                          value={rescheduleTime}
-                          onChange={(e) => setRescheduleTime(e.target.value)}
+                          value={editSessionTime}
+                          onChange={(e) => setEditSessionTime(e.target.value)}
                           required
                         />
                       </div>
                     </div>
+                    <p className="text-xs text-muted-foreground -mt-2">
+                      Data e hora são sempre no fuso de Brasília; o Google Calendar recebe o instante correto.
+                    </p>
 
                     <div className="space-y-2">
-                      <Label htmlFor="reschedule-duration">Duração (minutos) - Opcional</Label>
+                      <Label htmlFor="edit-session-duration">Duração (minutos)</Label>
                       <Input
-                        id="reschedule-duration"
+                        id="edit-session-duration"
                         type="number"
                         min="15"
                         max="300"
                         step="15"
-                        value={rescheduleDuration || ''}
-                        onChange={(e) => setRescheduleDuration(e.target.value ? parseInt(e.target.value) : null)}
-                        placeholder={selectedSession.duration?.toString() || '60'}
+                        value={editSessionDuration ?? ""}
+                        onChange={(e) =>
+                          setEditSessionDuration(e.target.value ? parseInt(e.target.value, 10) : null)
+                        }
+                        placeholder={selectedSession.duration?.toString() || "60"}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-session-notes">Notas</Label>
+                      <Textarea
+                        id="edit-session-notes"
+                        value={editSessionNotes}
+                        onChange={(e) => setEditSessionNotes(e.target.value)}
+                        placeholder="Observações sobre a sessão..."
+                        rows={3}
+                        className="resize-y min-h-[80px]"
                       />
                     </div>
 
                     <div className="flex gap-2 justify-end pt-2">
-                      <Button
-                        variant="outline"
-                        onClick={() => {
-                          setShowRescheduleForm(false)
-                          setRescheduleDate("")
-                          setRescheduleTime("")
-                          setRescheduleDuration(null)
-                        }}
-                      >
+                      <Button variant="outline" onClick={resetSessionEditForm}>
                         Cancelar
                       </Button>
                       <Button
                         onClick={async () => {
-                          if (!rescheduleDate || !rescheduleTime) {
+                          if (!editSessionDate || !editSessionTime) {
                             showErrorToast("Campos obrigatórios", "Data e horário são obrigatórios")
                             return
                           }
 
                           setIsActioning(true)
                           try {
-                            // Combinar data e hora
-                            const [year, month, day] = rescheduleDate.split('-')
-                            const [hours, minutes] = rescheduleTime.split(':')
-                            const newDateTime = new Date(
-                              parseInt(year),
-                              parseInt(month) - 1,
-                              parseInt(day),
-                              parseInt(hours),
-                              parseInt(minutes)
-                            )
-
-                            await sessionService.reschedule(
+                            const updated = await sessionService.updateSession(
                               selectedSession.patient_id,
                               selectedSession.id,
                               {
-                                session_date: newDateTime.toISOString(),
-                                duration: rescheduleDuration,
-                                notes: null
+                                session_date: saoPauloWallDateTimeToUtcIso(
+                                  editSessionDate,
+                                  editSessionTime
+                                ),
+                                duration: editSessionDuration,
+                                notes: editSessionNotes.trim() || null,
                               }
                             )
-                            
-                            showSuccessToast("Sessão remarcada", "Sessão remarcada com sucesso")
-                            setShowRescheduleForm(false)
-                            setRescheduleDate("")
-                            setRescheduleTime("")
-                            setRescheduleDuration(null)
-                            loadSessionsForCurrentMonth()
-                            setIsModalOpen(false)
-                            setSelectedSession(null)
+                            showSuccessToast("Sessão atualizada", "Alterações salvas e sincronizadas quando houver Google Calendar.")
+                            resetSessionEditForm()
+                            setSelectedSession(updated)
+                            await loadSessionsForCurrentMonth()
                           } catch (error: any) {
                             showErrorToast(
-                              "Erro ao remarcar sessão",
+                              "Erro ao salvar",
                               error.response?.data?.message || "Tente novamente mais tarde"
                             )
                           } finally {
                             setIsActioning(false)
                           }
                         }}
-                        disabled={isActioning || !rescheduleDate || !rescheduleTime}
+                        disabled={isActioning || !editSessionDate || !editSessionTime}
                         className="gap-2"
                       >
                         {isActioning ? (
@@ -707,7 +770,7 @@ export function CalendarView({ onSessionClick, googleEvents = [], onMonthChange 
                         ) : (
                           <>
                             <Save className="h-4 w-4" />
-                            Confirmar Remarcação
+                            Salvar alterações
                           </>
                         )}
                       </Button>

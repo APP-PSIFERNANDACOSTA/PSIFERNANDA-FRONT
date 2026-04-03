@@ -3,7 +3,7 @@
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { CalendarView } from "@/components/calendar-view"
 import { Card, CardContent } from "@/components/ui/card"
-import { Plus, Loader2, Calendar, CheckCircle2, XCircle, Download, RefreshCw } from "lucide-react"
+import { Plus, Loader2, Calendar, CheckCircle2, XCircle, Download, RefreshCw, Upload } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import Link from "next/link"
@@ -13,7 +13,7 @@ import type { GoogleCalendarEvent } from "@/services/google-oauth-service"
 import sessionService from "@/services/session-service"
 import googleOAuthService from "@/services/google-oauth-service"
 import { showErrorToast, showSuccessToast } from "@/lib/toast-helpers"
-import { startOfMonth, endOfMonth } from "date-fns"
+import { saoPauloMonthRangeUtcIso } from "@/lib/session-datetime-br"
 import { useSearchParams } from "next/navigation"
 import { useAutoRefresh } from "@/hooks/use-auto-refresh"
 
@@ -37,6 +37,8 @@ export default function SchedulePage() {
   const [isLoadingGoogleEvents, setIsLoadingGoogleEvents] = useState(true)
   const [importError, setImportError] = useState<string | null>(null)
   const [visibleMonth, setVisibleMonth] = useState(new Date())
+  const [calendarSessionSyncNonce, setCalendarSessionSyncNonce] = useState(0)
+  const [isPushingSessions, setIsPushingSessions] = useState(false)
 
   const refetchScheduleData = () => {
     loadSessionsStats()
@@ -65,10 +67,8 @@ export default function SchedulePage() {
     try {
       setIsLoadingGoogleEvents(true)
       setImportError(null)
-      const start = startOfMonth(month)
-      const end = endOfMonth(month)
-      // Busca direto no Google - eventos novos criados na agenda aparecem automaticamente
-      const events = await googleOAuthService.getCalendarEvents(start.toISOString(), end.toISOString())
+      const { start, end } = saoPauloMonthRangeUtcIso(month)
+      const events = await googleOAuthService.getCalendarEvents(start, end)
       setGoogleEvents(events)
       // Salva em background para cache (útil em caso de erro futuro)
       if (events.length > 0) {
@@ -96,13 +96,11 @@ export default function SchedulePage() {
 
   const loadSessionsStats = async () => {
     try {
-      const now = new Date()
-      const start = startOfMonth(now)
-      const end = endOfMonth(now)
-      
+      const { start, end } = saoPauloMonthRangeUtcIso(new Date())
+
       const sessions = await sessionService.getAllSessions({
-        start_date: start.toISOString(),
-        end_date: end.toISOString(),
+        start_date: start,
+        end_date: end,
       })
 
       const stats = {
@@ -164,6 +162,32 @@ export default function SchedulePage() {
     setIsImportingGoogle(false)
   }
 
+  const handlePushSessionsToGoogle = async () => {
+    setIsPushingSessions(true)
+    try {
+      const res = await googleOAuthService.pushSessionsToCalendar()
+      if (!res.success) {
+        showErrorToast("Envio ao Google", res.message || "Não foi possível enviar as sessões.")
+        return
+      }
+      const title =
+        (res.created ?? 0) > 0
+          ? "Sessões enviadas ao Google"
+          : "Sincronização com o Google"
+      showSuccessToast(title, res.message || "Concluído.")
+      setCalendarSessionSyncNonce((n) => n + 1)
+      await loadGoogleEventsForMonth(visibleMonth)
+      loadSessionsStats()
+    } catch (error: any) {
+      showErrorToast(
+        "Erro ao enviar sessões",
+        error.response?.data?.message || error.message || "Tente novamente mais tarde."
+      )
+    } finally {
+      setIsPushingSessions(false)
+    }
+  }
+
   const handleDisconnectGoogle = async () => {
     if (!confirm("Desconectar o Google Calendar? As sessões futuras não serão sincronizadas automaticamente.")) {
       return
@@ -214,20 +238,36 @@ export default function SchedulePage() {
           </div>
           <div className="flex items-center gap-2">
             {!isCheckingGoogle && googleConnected && !importError && (
-              <Button
-                onClick={() => loadGoogleEventsForMonth(visibleMonth)}
-                disabled={isLoadingGoogleEvents}
-                variant="outline"
-                size="sm"
-                className="gap-2"
-                title="Atualizar eventos do Google Calendar"
-              >
-                {isLoadingGoogleEvents ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <RefreshCw className="h-4 w-4" />
-                )}
-              </Button>
+              <>
+                <Button
+                  onClick={() => loadGoogleEventsForMonth(visibleMonth)}
+                  disabled={isLoadingGoogleEvents}
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                  title="Atualizar eventos do Google Calendar"
+                >
+                  {isLoadingGoogleEvents ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-4 w-4" />
+                  )}
+                </Button>
+                <Button
+                  onClick={handlePushSessionsToGoogle}
+                  disabled={isPushingSessions || isLoadingGoogleEvents}
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                  title="Enviar ao Google as sessões que ainda não têm evento (as já vinculadas são ignoradas)"
+                >
+                  {isPushingSessions ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Upload className="h-4 w-4" />
+                  )}
+                </Button>
+              </>
             )}
             {!isCheckingGoogle && googleConnected && importError && (
               <Button
@@ -375,6 +415,7 @@ export default function SchedulePage() {
           onSessionClick={handleSessionClick}
           googleEvents={googleEvents}
           onMonthChange={setVisibleMonth}
+          sessionListSyncNonce={calendarSessionSyncNonce}
         />
       </div>
     </DashboardLayout>

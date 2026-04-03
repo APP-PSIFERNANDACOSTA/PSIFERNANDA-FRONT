@@ -8,6 +8,8 @@ export interface Session {
   duration: number | null;
   notes: string | null;
   status: SessionStatus;
+  /** ID do evento no Google Calendar, quando sincronizado */
+  google_event_id?: string | null;
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
@@ -57,11 +59,15 @@ export const SESSION_STATUS_LABELS: Record<SessionStatus, string> = {
   rescheduled: 'Remarcada',
 };
 
+/** Chip roxo (Grape) — igual para agendada e remarcada na agenda */
+const SESSION_ACTIVE_CHIP =
+  'bg-[#8E24AA] text-white border border-[#6a1b7a] shadow-sm'
+
 export const SESSION_STATUS_COLORS: Record<SessionStatus, string> = {
-  scheduled: 'bg-blue-50 text-blue-700 border-blue-200',
+  scheduled: SESSION_ACTIVE_CHIP,
+  rescheduled: SESSION_ACTIVE_CHIP,
   completed: 'bg-green-50 text-green-700 border-green-200',
   cancelled: 'bg-red-50 text-red-700 border-red-200',
   no_show: 'bg-orange-50 text-orange-700 border-orange-200',
-  rescheduled: 'bg-purple-50 text-purple-700 border-purple-200',
 };
 

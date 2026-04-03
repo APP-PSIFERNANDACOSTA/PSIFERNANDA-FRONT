@@ -18,11 +18,38 @@ import type { Contract, SignContractData } from "@/types/contract"
 import type { Patient } from "@/types/patient"
 import { PAYMENT_DAY_OPTIONS } from "@/types/contract"
 import { showErrorToast, showSuccessToast } from "@/lib/toast-helpers"
+import {
+  validateSignContractForm,
+  laravelErrorsToFieldMap,
+} from "@/lib/contract-sign-validation"
+import type { SignContractValidationErrors } from "@/lib/contract-sign-validation"
+import { cn } from "@/lib/utils"
 
 /** Tempo mínimo que a tela de loading deve aparecer (ms) */
 const MIN_LOADING_MS = 5500
 /** Intervalo entre cada etapa do loading (ms) */
 const STEP_INTERVAL_MS = 1600
+
+const CONTRACT_FORM_FIELD_ORDER = [
+  "patient_name",
+  "patient_email",
+  "patient_phone",
+  "patient_cpf",
+  "patient_birthdate",
+  "emergency_contact",
+  "payment_day",
+  "accept_terms",
+] as const
+
+function scrollToFirstContractFieldError(errors: SignContractValidationErrors) {
+  const key = CONTRACT_FORM_FIELD_ORDER.find((k) => errors[k])
+  if (!key || typeof window === "undefined") return
+  const elementId =
+    key === "payment_day" ? "payment_day_trigger" : key
+  requestAnimationFrame(() => {
+    document.getElementById(elementId)?.scrollIntoView({ behavior: "smooth", block: "center" })
+  })
+}
 
 export default function ContractSignPage() {
   const params = useParams()
@@ -34,6 +61,9 @@ export default function ContractSignPage() {
   const [isSigning, setIsSigning] = useState(false)
   const [signingStep, setSigningStep] = useState(0)
   const [isRenewal, setIsRenewal] = useState(false)
+  const [psychologistEmail, setPsychologistEmail] = useState<string | null>(null)
+  const [psychologistCpf, setPsychologistCpf] = useState<string | null>(null)
+  const [fieldErrors, setFieldErrors] = useState<SignContractValidationErrors>({})
   const { colors } = useColors()
 
   const SIGNING_STEPS = [
@@ -83,6 +113,8 @@ export default function ContractSignPage() {
       const response = await contractService.getByToken(token)
       if (response.success) {
         setContract(response.contract)
+        setPsychologistEmail(response.psychologist_email ?? null)
+        setPsychologistCpf(response.psychologist_cpf ?? null)
         if (response.contract.patient) {
           prefillFromPatient(response.contract)
         }
@@ -104,16 +136,36 @@ export default function ContractSignPage() {
     }
   }
 
+  const clearFieldError = (field: keyof SignContractValidationErrors) => {
+    setFieldErrors((prev) => {
+      if (!prev[field]) return prev
+      const next = { ...prev }
+      delete next[field]
+      return next
+    })
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!contract) return
-    
-    // Validar payment_day se for mensal
-    if (contract.payment_type === 'mensal' && !formData.payment_day) {
-      showErrorToast("Dia de pagamento obrigatório", "Selecione o dia de pagamento para contratos mensais")
+
+    const validation = validateSignContractForm(
+      formData,
+      contract.payment_type,
+      psychologistEmail,
+      psychologistCpf
+    )
+    if (!validation.ok) {
+      setFieldErrors(validation.errors)
+      const firstMsg =
+        CONTRACT_FORM_FIELD_ORDER.map((k) => validation.errors[k]).find(Boolean) ||
+        "Corrija os campos destacados."
+      showErrorToast("Verifique o formulário", firstMsg)
+      scrollToFirstContractFieldError(validation.errors)
       return
     }
+    setFieldErrors({})
 
     const startedAt = Date.now()
     setIsSigning(true)
@@ -139,9 +191,18 @@ export default function ContractSignPage() {
     } catch (error: any) {
       if (stepInterval) clearInterval(stepInterval)
       if (error.response?.status === 422) {
-        const errors = error.response.data.errors
-        const firstError = Object.values(errors)[0] as string[]
-        showErrorToast("Erro de validação", firstError[0])
+        const raw = error.response?.data?.errors
+        const mapped = laravelErrorsToFieldMap(raw)
+        setFieldErrors(mapped)
+        const fromMap = CONTRACT_FORM_FIELD_ORDER.map((k) => mapped[k]).find(Boolean)
+        const fromLaravel = raw
+          ? (Object.values(raw).find((v) => Array.isArray(v) && v[0]) as string[] | undefined)?.[0]
+          : undefined
+        showErrorToast(
+          "Erro de validação",
+          fromMap || fromLaravel || error.response?.data?.message || "Corrija os campos destacados."
+        )
+        scrollToFirstContractFieldError(mapped)
       } else {
         showErrorToast(
           "Erro ao assinar contrato",
@@ -350,15 +411,22 @@ export default function ContractSignPage() {
               </div>
             </CardHeader>
             <CardContent className="p-4 sm:p-6">
-              <form onSubmit={handleSubmit} className="space-y-4">
+              <form noValidate onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="patient_name">Nome Completo *</Label>
                   <Input
                     id="patient_name"
                     value={formData.patient_name}
-                    onChange={(e) => setFormData({ ...formData, patient_name: e.target.value })}
-                    required
+                    onChange={(e) => {
+                      clearFieldError("patient_name")
+                      setFormData({ ...formData, patient_name: e.target.value })
+                    }}
+                    aria-invalid={!!fieldErrors.patient_name}
+                    className={cn(fieldErrors.patient_name && "border-destructive")}
                   />
+                  {fieldErrors.patient_name && (
+                    <p className="text-sm text-destructive">{fieldErrors.patient_name}</p>
+                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -367,9 +435,16 @@ export default function ContractSignPage() {
                     id="patient_email"
                     type="email"
                     value={formData.patient_email}
-                    onChange={(e) => setFormData({ ...formData, patient_email: e.target.value })}
-                    required
+                    onChange={(e) => {
+                      clearFieldError("patient_email")
+                      setFormData({ ...formData, patient_email: e.target.value })
+                    }}
+                    aria-invalid={!!fieldErrors.patient_email}
+                    className={cn(fieldErrors.patient_email && "border-destructive")}
                   />
+                  {fieldErrors.patient_email && (
+                    <p className="text-sm text-destructive">{fieldErrors.patient_email}</p>
+                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -378,11 +453,18 @@ export default function ContractSignPage() {
                     id="patient_phone"
                     type="tel"
                     value={formData.patient_phone}
-                    onChange={(e) => setFormData({ ...formData, patient_phone: formatPhoneBR(e.target.value) })}
+                    onChange={(e) => {
+                      clearFieldError("patient_phone")
+                      setFormData({ ...formData, patient_phone: formatPhoneBR(e.target.value) })
+                    }}
                     placeholder="(00) 00000-0000"
                     maxLength={16}
-                    required
+                    aria-invalid={!!fieldErrors.patient_phone}
+                    className={cn(fieldErrors.patient_phone && "border-destructive")}
                   />
+                  {fieldErrors.patient_phone && (
+                    <p className="text-sm text-destructive">{fieldErrors.patient_phone}</p>
+                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -390,11 +472,18 @@ export default function ContractSignPage() {
                   <Input
                     id="patient_cpf"
                     value={formData.patient_cpf}
-                    onChange={(e) => setFormData({ ...formData, patient_cpf: formatCPF(e.target.value) })}
+                    onChange={(e) => {
+                      clearFieldError("patient_cpf")
+                      setFormData({ ...formData, patient_cpf: formatCPF(e.target.value) })
+                    }}
                     placeholder="000.000.000-00"
                     maxLength={14}
-                    required
+                    aria-invalid={!!fieldErrors.patient_cpf}
+                    className={cn(fieldErrors.patient_cpf && "border-destructive")}
                   />
+                  {fieldErrors.patient_cpf && (
+                    <p className="text-sm text-destructive">{fieldErrors.patient_cpf}</p>
+                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -403,9 +492,16 @@ export default function ContractSignPage() {
                     id="patient_birthdate"
                     type="date"
                     value={formData.patient_birthdate}
-                    onChange={(e) => setFormData({ ...formData, patient_birthdate: e.target.value })}
-                    required
+                    onChange={(e) => {
+                      clearFieldError("patient_birthdate")
+                      setFormData({ ...formData, patient_birthdate: e.target.value })
+                    }}
+                    aria-invalid={!!fieldErrors.patient_birthdate}
+                    className={cn(fieldErrors.patient_birthdate && "border-destructive")}
                   />
+                  {fieldErrors.patient_birthdate && (
+                    <p className="text-sm text-destructive">{fieldErrors.patient_birthdate}</p>
+                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -413,20 +509,34 @@ export default function ContractSignPage() {
                   <Textarea
                     id="emergency_contact"
                     value={formData.emergency_contact}
-                    onChange={(e) => setFormData({ ...formData, emergency_contact: e.target.value })}
+                    onChange={(e) => {
+                      clearFieldError("emergency_contact")
+                      setFormData({ ...formData, emergency_contact: e.target.value })
+                    }}
                     placeholder="Nome, telefone e parentesco (ex: Maria — (11) 99999-9999 — irmã)"
-                    required
+                    aria-invalid={!!fieldErrors.emergency_contact}
+                    className={cn(fieldErrors.emergency_contact && "border-destructive")}
                   />
+                  {fieldErrors.emergency_contact && (
+                    <p className="text-sm text-destructive">{fieldErrors.emergency_contact}</p>
+                  )}
                 </div>
 
                 {contract.payment_type === 'mensal' && (
                   <div className="space-y-2">
-                    <Label htmlFor="payment_day">Dia de Pagamento *</Label>
+                    <Label htmlFor="payment_day_trigger">Dia de Pagamento *</Label>
                     <Select
-                      value={formData.payment_day?.toString() || ''}
-                      onValueChange={(value) => setFormData({ ...formData, payment_day: Number(value) })}
+                      value={formData.payment_day?.toString() || ""}
+                      onValueChange={(value) => {
+                        clearFieldError("payment_day")
+                        setFormData({ ...formData, payment_day: Number(value) })
+                      }}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger
+                        id="payment_day_trigger"
+                        aria-invalid={!!fieldErrors.payment_day}
+                        className={cn(fieldErrors.payment_day && "border-destructive")}
+                      >
                         <SelectValue placeholder="Selecione o dia" />
                       </SelectTrigger>
                       <SelectContent>
@@ -437,26 +547,32 @@ export default function ContractSignPage() {
                         ))}
                       </SelectContent>
                     </Select>
+                    {fieldErrors.payment_day && (
+                      <p className="text-sm text-destructive">{fieldErrors.payment_day}</p>
+                    )}
                   </div>
                 )}
 
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="accept_terms"
-                    checked={formData.accept_terms}
-                    onCheckedChange={(checked) => setFormData({ ...formData, accept_terms: !!checked })}
-                    required
-                  />
-                  <Label htmlFor="accept_terms" className="text-sm">
-                    Li e aceito os termos deste contrato terapêutico *
-                  </Label>
+                <div className="space-y-2">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="accept_terms"
+                      checked={formData.accept_terms}
+                      onCheckedChange={(checked) => {
+                        clearFieldError("accept_terms")
+                        setFormData({ ...formData, accept_terms: !!checked })
+                      }}
+                    />
+                    <Label htmlFor="accept_terms" className="text-sm">
+                      Li e aceito os termos deste contrato terapêutico *
+                    </Label>
+                  </div>
+                  {fieldErrors.accept_terms && (
+                    <p className="text-sm text-destructive">{fieldErrors.accept_terms}</p>
+                  )}
                 </div>
 
-                <Button 
-                  type="submit" 
-                  disabled={isSigning || !formData.accept_terms} 
-                  className="w-full gap-2"
-                >
+                <Button type="submit" disabled={isSigning} className="w-full gap-2">
                   {isSigning ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin" />
