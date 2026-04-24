@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Image from "next/image"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -64,6 +64,7 @@ export default function ContractSignPage() {
   const [psychologistEmail, setPsychologistEmail] = useState<string | null>(null)
   const [psychologistCpf, setPsychologistCpf] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<SignContractValidationErrors>({})
+  const submitLockRef = useRef(false)
   const { colors } = useColors()
 
   const SIGNING_STEPS = [
@@ -148,10 +149,20 @@ export default function ContractSignPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!contract) return
+    if (!contract || submitLockRef.current) return
+
+    const sanitizedFormData: SignContractData = {
+      ...formData,
+      patient_name: formData.patient_name.trim(),
+      patient_email: formData.patient_email.trim(),
+      patient_phone: formData.patient_phone.trim(),
+      patient_cpf: formData.patient_cpf.trim(),
+      patient_birthdate: formData.patient_birthdate.trim(),
+      emergency_contact: formData.emergency_contact.trim(),
+    }
 
     const validation = validateSignContractForm(
-      formData,
+      sanitizedFormData,
       contract.payment_type,
       psychologistEmail,
       psychologistCpf
@@ -167,6 +178,7 @@ export default function ContractSignPage() {
     }
     setFieldErrors({})
 
+    submitLockRef.current = true
     const startedAt = Date.now()
     setIsSigning(true)
     setSigningStep(0)
@@ -174,7 +186,7 @@ export default function ContractSignPage() {
       setSigningStep((s) => Math.min(s + 1, SIGNING_STEPS.length - 1))
     }, STEP_INTERVAL_MS)
     try {
-      const response = await contractService.sign(token, formData)
+      const response = await contractService.sign(token, sanitizedFormData)
       if (stepInterval) clearInterval(stepInterval)
       stepInterval = null
       setSigningStep(SIGNING_STEPS.length - 1)
@@ -209,6 +221,7 @@ export default function ContractSignPage() {
           error.response?.data?.message || "Tente novamente mais tarde"
         )
       }
+      submitLockRef.current = false
       setIsSigning(false)
       return
     }

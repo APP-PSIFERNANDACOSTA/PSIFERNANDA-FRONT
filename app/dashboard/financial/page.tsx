@@ -105,7 +105,10 @@ export default function FinancialReportPage() {
     try {
       const response = await contractService.getAll("signed")
       if (response.success) {
-        setSignedContracts(response.contracts || [])
+        const activePatientContracts = (response.contracts || []).filter(
+          (contract) => contract.patient?.status === "active"
+        )
+        setSignedContracts(activePatientContracts)
       }
     } catch {
       // Não bloqueia a tela de financeiro se a projeção falhar
