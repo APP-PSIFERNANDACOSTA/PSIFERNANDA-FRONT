@@ -39,6 +39,7 @@ const navigation = [
   // { name: "Recursos", href: "/dashboard/resources", icon: Library }, // Temporariamente oculto
   { name: "Exercícios", href: "/dashboard/exercises", icon: BookOpen },
   { name: "Pagamentos", href: "/dashboard/payments", icon: DollarSign },
+  { name: "Custos", href: "/dashboard/costs", icon: DollarSign },
   { name: "Financeiro", href: "/dashboard/financial", icon: BarChart3 },
   { name: "Comunicações", href: "/communications", icon: MessageSquare },
 ]

@@ -22,20 +22,21 @@ import {
   ChevronUp
 } from "lucide-react"
 import paymentService from "@/services/payment-service"
+import expenseService from "@/services/expense-service"
 import contractService from "@/services/contract-service"
 import type { Payment } from "@/types/payment"
 import type { Contract } from "@/types/contract"
+import type { Expense } from "@/types/expense"
+import { EXPENSE_STATUS_LABELS } from "@/types/expense"
 import { PAYMENT_METHOD_LABELS, PAYMENT_METHOD_COLORS } from "@/types/payment"
 import { showErrorToast } from "@/lib/toast-helpers"
 import { format, startOfMonth, endOfMonth, subMonths, startOfYear, endOfYear, addDays } from "date-fns"
 import { ptBR } from "date-fns/locale"
-import { useRouter } from "next/navigation"
 import apiClient from "@/lib/api-client"
 import { usePrivacyMode } from "@/contexts/privacy-mode-context"
 import { maskLongText, maskMoneyBr, maskPatientName } from "@/lib/privacy-mask"
 
 export default function FinancialReportPage() {
-  const router = useRouter()
   const { privacyMode } = usePrivacyMode()
   const [payments, setPayments] = useState<Payment[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -45,6 +46,11 @@ export default function FinancialReportPage() {
   const [isDownloading, setIsDownloading] = useState<number | null>(null)
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [signedContracts, setSignedContracts] = useState<Contract[]>([])
+  const [expenses, setExpenses] = useState<Expense[]>([])
+  const [summary, setSummary] = useState<{
+    cash: { total_received: string; total_paid_expenses: string; net_profit: string }
+    forecast: { pending_expenses: string }
+  } | null>(null)
 
   useEffect(() => {
     loadPayments()
@@ -90,12 +96,22 @@ export default function FinancialReportPage() {
 
       const paymentsData = await paymentService.getAll(params)
       setPayments(paymentsData || [])
+
+      const [summaryData, expenseData] = await Promise.all([
+        expenseService.getFinancialSummary(params),
+        expenseService.getAll(params),
+      ])
+
+      setSummary(summaryData)
+      setExpenses(expenseData || [])
     } catch (error: any) {
       showErrorToast(
         "Erro ao carregar pagamentos",
         error.response?.data?.message || "Tente novamente mais tarde"
       )
       setPayments([])
+      setExpenses([])
+      setSummary(null)
     } finally {
       setIsLoading(false)
     }
@@ -233,7 +249,8 @@ export default function FinancialReportPage() {
 
   // Calcular totais
   const totalAmount = payments.reduce((sum, payment) => sum + Number(payment.amount), 0)
-  const totalPayments = payments.length
+  const totalPaidExpenses = summary ? Number(summary.cash.total_paid_expenses) : 0
+  const netProfit = summary ? Number(summary.cash.net_profit) : totalAmount
   const projectedWeekly = getProjectedRevenue(7)
   const projectedFortnight = getProjectedRevenue(15)
   const projectedMonthly = getProjectedRevenue(30)
@@ -358,7 +375,7 @@ export default function FinancialReportPage() {
         </Card>
 
         {/* Projeção de Recebimentos por Contrato */}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <Card>
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
@@ -425,12 +442,12 @@ export default function FinancialReportPage() {
         </div>
 
         {/* Summary Cards */}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Card>
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Total Recebido</p>
+                  <p className="text-sm font-medium text-gray-600">Entradas Recebidas</p>
                   {isLoading ? (
                     <Loader2 className="h-8 w-8 animate-spin text-primary mt-2" />
                   ) : (
@@ -450,17 +467,17 @@ export default function FinancialReportPage() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Total de Pagamentos</p>
+                  <p className="text-sm font-medium text-gray-600">Saídas Pagas</p>
                   {isLoading ? (
                     <Loader2 className="h-8 w-8 animate-spin text-primary mt-2" />
                   ) : (
-                    <p className="text-3xl font-bold text-blue-600 mt-1">
-                      {totalPayments}
+                    <p className="text-3xl font-bold text-red-600 mt-1">
+                      {displayCurrency(totalPaidExpenses.toFixed(2))}
                     </p>
                   )}
                 </div>
-                <div className="h-12 w-12 rounded-lg bg-blue-100 flex items-center justify-center">
-                  <FileText className="h-6 w-6 text-blue-600" />
+                <div className="h-12 w-12 rounded-lg bg-red-100 flex items-center justify-center">
+                  <FileText className="h-6 w-6 text-red-600" />
                 </div>
               </div>
             </CardContent>
@@ -470,14 +487,13 @@ export default function FinancialReportPage() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Ticket Médio</p>
+                  <p className="text-sm font-medium text-gray-600">Lucro Líquido Real</p>
+                  <p className="text-xs text-gray-500 mt-1">Entradas recebidas - saídas pagas</p>
                   {isLoading ? (
                     <Loader2 className="h-8 w-8 animate-spin text-primary mt-2" />
                   ) : (
                     <p className="text-3xl font-bold text-purple-600 mt-1">
-                      {totalPayments > 0 
-                        ? displayCurrency((totalAmount / totalPayments).toFixed(2))
-                        : displayCurrency("0.00")}
+                      {displayCurrency(netProfit.toFixed(2))}
                     </p>
                   )}
                 </div>
@@ -487,6 +503,7 @@ export default function FinancialReportPage() {
               </div>
             </CardContent>
           </Card>
+
         </div>
 
         {/* Payment Method Breakdown */}
@@ -619,6 +636,51 @@ export default function FinancialReportPage() {
                           </Button>
                         </div>
                       )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Expense List */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Custos de Saída</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-6 w-6 animate-spin text-primary" />
+              </div>
+            ) : expenses.length === 0 ? (
+              <p className="text-sm text-gray-600">Nenhum custo lançado para este período.</p>
+            ) : (
+              <div className="space-y-3">
+                {expenses.map((expense) => (
+                  <div key={expense.id} className="flex items-center justify-between border rounded-lg p-4">
+                    <div>
+                      <p className="font-medium text-gray-900">{expense.title}</p>
+                      <p className="text-sm text-gray-600">
+                        {expense.description}
+                      </p>
+                      {expense.payment_method ? (
+                        <p className="text-sm text-gray-600">
+                          Forma: {PAYMENT_METHOD_LABELS[expense.payment_method as keyof typeof PAYMENT_METHOD_LABELS] ?? expense.payment_method}
+                        </p>
+                      ) : null}
+                      {expense.payment_date ? (
+                        <p className="text-sm text-gray-600">
+                          Pago em: {formatDate(expense.payment_date)}
+                        </p>
+                      ) : null}
+                    </div>
+                    <div className="text-right">
+                      <Badge variant="outline">{EXPENSE_STATUS_LABELS[expense.status]}</Badge>
+                      <p className="text-lg font-semibold text-red-600 mt-1">
+                        {displayCurrency(expense.amount)}
+                      </p>
                     </div>
                   </div>
                 ))}
