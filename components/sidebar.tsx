@@ -21,6 +21,7 @@ import {
   Library,
   ClipboardList,
   Cake,
+  FileCheck,
 } from "lucide-react"
 import { useEffect, useRef, useCallback } from "react"
 import { ThemeToggle } from "@/components/theme-toggle"
@@ -39,6 +40,7 @@ const navigation = [
   // { name: "Recursos", href: "/dashboard/resources", icon: Library }, // Temporariamente oculto
   { name: "Exercícios", href: "/dashboard/exercises", icon: BookOpen },
   { name: "Pagamentos", href: "/dashboard/payments", icon: DollarSign },
+  { name: "Recibo Saúde", href: "/dashboard/receipts", icon: FileCheck },
   { name: "Custos", href: "/dashboard/costs", icon: DollarSign },
   { name: "Financeiro", href: "/dashboard/financial", icon: BarChart3 },
   { name: "Comunicações", href: "/communications", icon: MessageSquare },

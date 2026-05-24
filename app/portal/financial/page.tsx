@@ -21,6 +21,7 @@ export default function FinanceiroPage() {
   const [sessions, setSessions] = useState<Session[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isDownloading, setIsDownloading] = useState<number | null>(null)
+  const [isDownloadingHealth, setIsDownloadingHealth] = useState<number | null>(null)
   const [filterMonth, setFilterMonth] = useState<string>("all")
 
   useEffect(() => {
@@ -52,6 +53,20 @@ export default function FinanceiroPage() {
       showErrorToast("Erro ao baixar recibo", error.response?.data?.message || "Tente novamente mais tarde")
     } finally {
       setIsDownloading(null)
+    }
+  }
+
+  const handleDownloadHealthReceipt = async (paymentId: number) => {
+    setIsDownloadingHealth(paymentId)
+    try {
+      await paymentService.downloadMyHealthReceipt(paymentId)
+    } catch (error: any) {
+      showErrorToast(
+        "Erro ao baixar Recibo de Saúde",
+        error.response?.data?.message || "Tente novamente mais tarde"
+      )
+    } finally {
+      setIsDownloadingHealth(null)
     }
   }
 
@@ -252,22 +267,33 @@ export default function FinanceiroPage() {
                           ) : (
                             <Eye className="h-3 w-3" />
                           )}
-                          Ver
+                          Recibo
                         </Button>
-                    {/*     <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleDownloadReceipt(payment.id)}
-                          disabled={isDownloading === payment.id}
-                          className="gap-1"
-                        >
-                          {isDownloading === payment.id ? (
-                            <Loader2 className="h-3 w-3 animate-spin" />
-                          ) : (
-                            <Download className="h-3 w-3" />
-                          )}
-                          Baixar
-                        </Button> */}
+                      </div>
+                    )}
+                    {(payment.health_receipt?.available || payment.health_receipt?.status === "pending") && (
+                      <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+                        {payment.health_receipt?.available && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDownloadHealthReceipt(payment.id)}
+                            disabled={isDownloadingHealth === payment.id}
+                            className="gap-1"
+                          >
+                            {isDownloadingHealth === payment.id ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              <Download className="h-3 w-3" />
+                            )}
+                            Recibo de Saúde
+                          </Button>
+                        )}
+                        {payment.health_receipt?.status === "pending" && !payment.health_receipt.available && (
+                          <Badge variant="secondary" className="justify-center bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
+                            Recibo de Saúde em emissão
+                          </Badge>
+                        )}
                       </div>
                     )}
                   </div>

@@ -185,6 +185,19 @@ export default function PaymentsPage() {
                             Recibo Disponível
                           </Badge>
                         )}
+                        {(payment.healthReceipt?.status === "pending" || payment.health_receipt?.status === "pending") && (
+                          <Badge
+                            variant="outline"
+                            className="cursor-pointer bg-amber-100 text-amber-800 border-amber-200"
+                            onClick={() => {
+                              const receiptId = payment.healthReceipt?.id
+                              if (receiptId) router.push(`/dashboard/receipts/${receiptId}`)
+                              else router.push("/dashboard/receipts")
+                            }}
+                          >
+                            Recibo Saúde pendente
+                          </Badge>
+                        )}
                       </div>
 
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">

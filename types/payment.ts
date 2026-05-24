@@ -1,5 +1,10 @@
 export type PaymentMethod = 'pix' | 'credit_card' | 'boleto';
 
+export interface HealthReceiptSummary {
+  status: 'pending' | 'issued';
+  available: boolean;
+}
+
 export interface Payment {
   id: number;
   patient_id: number;
@@ -17,11 +22,17 @@ export interface Payment {
     id: number;
     name: string;
     email: string;
+    cpf?: string | null;
   };
   psychologist?: {
     id: number;
     name: string;
     email: string;
+  };
+  health_receipt?: HealthReceiptSummary;
+  healthReceipt?: {
+    id: number;
+    status: 'pending' | 'issued';
   };
 }
 

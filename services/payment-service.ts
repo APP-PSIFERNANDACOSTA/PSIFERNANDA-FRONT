@@ -114,9 +114,6 @@ class PaymentService {
     return response.payment;
   }
 
-  /**
-   * Download patient's receipt PDF
-   */
   async downloadMyReceipt(id: number): Promise<void> {
     try {
       const response = await apiClient
@@ -137,6 +134,41 @@ class PaymentService {
       window.URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Erro ao baixar PDF:', error);
+      throw error;
+    }
+  }
+
+  async downloadMyHealthReceipt(id: number): Promise<void> {
+    try {
+      const response = await apiClient
+        .getAxiosInstance()
+        .get(`/patient/payments/${id}/health-receipt/download`, {
+          responseType: 'blob',
+        });
+
+      const contentType = (response.headers['content-type'] as string) || 'application/pdf';
+      const ext = contentType.includes('png')
+        ? 'png'
+        : contentType.includes('jpeg') || contentType.includes('jpg')
+        ? 'jpg'
+        : 'pdf';
+
+      const disposition = (response.headers['content-disposition'] as string) || '';
+      const match = disposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+      const serverFilename = match ? match[1].replace(/['"]/g, '').trim() : null;
+      const filename = serverFilename || `recibo_saude_${id}.${ext}`;
+
+      const blob = new Blob([response.data], { type: contentType });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Erro ao baixar Recibo de Saúde:', error);
       throw error;
     }
   }
