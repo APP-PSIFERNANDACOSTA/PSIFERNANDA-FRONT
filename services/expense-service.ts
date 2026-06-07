@@ -20,6 +20,11 @@ class ExpenseService {
     return response.expenses;
   }
 
+  async getById(id: number): Promise<Expense> {
+    const response = await apiClient.get<ExpenseResponse>(`/expenses/${id}`);
+    return response.expense;
+  }
+
   async create(data: CreateExpenseData): Promise<Expense> {
     const response = await apiClient.post<ExpenseResponse>('/expenses', data);
     return response.expense;

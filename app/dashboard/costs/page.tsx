@@ -1,12 +1,12 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useState, useCallback } from "react"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Loader2, Plus, RefreshCw, Trash2 } from "lucide-react"
+import { Loader2, ChevronLeft, ChevronRight, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react"
 import expenseService from "@/services/expense-service"
 import type { Expense } from "@/types/expense"
 import { EXPENSE_STATUS_LABELS } from "@/types/expense"
@@ -20,10 +20,13 @@ const STATUS_COLORS = {
   pago: "bg-green-50 text-green-700 border-green-200",
 }
 
+const PAGE_SIZE = 15
+
 export default function CostsPage() {
   const [expenses, setExpenses] = useState<Expense[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [search, setSearch] = useState("")
+  const [currentPage, setCurrentPage] = useState(1)
 
   const loadExpenses = async () => {
     setIsLoading(true)
@@ -60,6 +63,15 @@ export default function CostsPage() {
         expense.description.toLowerCase().includes(searchTerm)
     )
   }, [expenses, search])
+
+  const totalPages = Math.max(1, Math.ceil(filteredExpenses.length / PAGE_SIZE))
+  const safePage = Math.min(currentPage, totalPages)
+  const paginatedExpenses = filteredExpenses.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE)
+
+  const handleSearchChange = useCallback((value: string) => {
+    setSearch(value)
+    setCurrentPage(1)
+  }, [])
 
   const handleDelete = async (expense: Expense) => {
     try {
@@ -102,7 +114,7 @@ export default function CostsPage() {
               <Input
                 placeholder="Buscar título ou descrição"
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(e) => handleSearchChange(e.target.value)}
               />
               <Button variant="secondary" onClick={loadExpenses}>Aplicar filtros</Button>
             </div>
@@ -115,7 +127,7 @@ export default function CostsPage() {
               <p className="text-sm text-muted-foreground py-6">Nenhum custo encontrado.</p>
             ) : (
               <div className="space-y-3">
-                {filteredExpenses.map((expense) => (
+                {paginatedExpenses.map((expense) => (
                   <div key={expense.id} className="border rounded-lg p-4">
                     <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
                       <div>
@@ -142,6 +154,11 @@ export default function CostsPage() {
 
                       <div className="flex items-center gap-2">
                         <p className="font-semibold min-w-[120px] text-right">{formatCurrency(expense.amount)}</p>
+                        <Button variant="outline" size="icon" asChild>
+                          <Link href={`/dashboard/costs/${expense.id}/edit`}>
+                            <Pencil className="h-4 w-4" />
+                          </Link>
+                        </Button>
                         <Button variant="outline" size="icon" onClick={() => handleDelete(expense)}>
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -149,6 +166,32 @@ export default function CostsPage() {
                     </div>
                   </div>
                 ))}
+              </div>
+            )}
+
+            {!isLoading && totalPages > 1 && (
+              <div className="flex items-center justify-between pt-2">
+                <p className="text-sm text-muted-foreground">
+                  Página {safePage} de {totalPages} &middot; {filteredExpenses.length} lançamento{filteredExpenses.length !== 1 ? "s" : ""}
+                </p>
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    disabled={safePage <= 1}
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    disabled={safePage >= totalPages}
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             )}
           </CardContent>
