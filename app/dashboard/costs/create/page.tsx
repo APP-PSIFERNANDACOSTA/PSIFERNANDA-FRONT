@@ -14,11 +14,14 @@ import type { PaymentMethod } from "@/types/payment"
 import { PAYMENT_METHOD_LABELS } from "@/types/payment"
 import { showErrorToast, showSuccessToast } from "@/lib/toast-helpers"
 
+const today = new Date().toISOString().split("T")[0]
+
 const initialForm = {
   title: "",
   description: "",
   amount: "",
   payment_method: "pix" as PaymentMethod,
+  payment_date: today,
 }
 
 export default function CreateCostPage() {
@@ -35,6 +38,7 @@ export default function CreateCostPage() {
         description: form.description,
         amount: Number(form.amount),
         payment_method: form.payment_method || "pix",
+        payment_date: form.payment_date || null,
       })
       showSuccessToast("Custo cadastrado", "O lançamento foi salvo com sucesso.")
       router.push("/dashboard/costs")
@@ -88,6 +92,17 @@ export default function CreateCostPage() {
                   step="0.01"
                   value={form.amount}
                   onChange={(e) => setForm((prev) => ({ ...prev, amount: e.target.value }))}
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="payment_date">Data da saída</Label>
+                <Input
+                  id="payment_date"
+                  type="date"
+                  value={form.payment_date}
+                  onChange={(e) => setForm((prev) => ({ ...prev, payment_date: e.target.value }))}
                   required
                 />
               </div>
